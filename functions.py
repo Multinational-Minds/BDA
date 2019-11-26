@@ -1,5 +1,7 @@
 import json
 import requests
+import pandas as pd
+from pandas.io.json import json_normalize
 
 
 def wbclimate(variable, timescale, countriesList, export= False):
@@ -25,9 +27,11 @@ def wbclimate(variable, timescale, countriesList, export= False):
         except requests.exceptions.HTTPError:
             countries = [x for x in countriesList if x not in countries_done]
     else:
+        datapd = json_normalize(dataset)
         if export:
-            savefile(dataset, "dataset.json")
-        return dataset
+            savefile(datapd, "dataset.json")
+        return datapd
+
 
 
 
