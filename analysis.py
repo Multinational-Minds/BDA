@@ -14,5 +14,5 @@ for country in countries:
 
 #data = f.wbclimate("tas", "year", iso3, export=True)
 
-data2 = f.wbdataset('SM.POP.NETM', iso3, 1960, 2012)
+data2 = f.wbdataset('SM.POP.NETM', iso3, 1960, 2012, export=True)
 
