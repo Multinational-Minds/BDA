@@ -1,3 +1,6 @@
+'''This file is used to define custom functions'''
+
+
 import json
 import requests
 import pandas as pd
@@ -98,8 +101,13 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export =
 
 
 def openfile(name):
-    with open(name, "r") as file:
-        return json.load(file)
+    if str(name).lower().endswith('.json'):
+        with open(name, "r") as file:
+            return json.load(file)
+    elif str(name).lower().endswith('.csv'):
+        with open(name, "r") as file:
+            data = pd.read_csv(file)
+            return data
 
 
 def savefile(data, name):

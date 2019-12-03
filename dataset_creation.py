@@ -1,3 +1,5 @@
+'''this file is used to query the API for the needed data'''
+
 import functions as f
 
 countries = f.openfile("iso3.txt")
