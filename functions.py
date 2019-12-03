@@ -105,3 +105,4 @@ def openfile(name):
 def savefile(data, name):
     with open(name, "w") as file:
         json.dump(data, file)
+
