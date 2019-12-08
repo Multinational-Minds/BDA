@@ -11,3 +11,6 @@ pop_growth = f.openfile("population growth.csv")
 rain = f.openfile("rain.csv")
 temp = f.openfile("temp.csv")
 total_pop = f.openfile("total population.csv")
+
+f.season(rain)
+

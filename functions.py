@@ -1,10 +1,11 @@
 '''This file is used to define custom functions'''
-
+import datetime
 import json
 import pandas as pd
 import requests
 import matplotlib.pyplot as plt
-
+from pylab import rcParams
+rcParams['figure.figsize'] = 11, 9
 
 def wbclimate(variable, timescale, countriesList, export=False):
     """ retrieve historical climate data
@@ -119,16 +120,15 @@ def savefile(data, name):
 
 
 
-def name(data)
-    data.index
-    y = data.resample('AS').mean()
-    y[1960:2019]
-    y.plot(figsize=(15, 6))
-    plt.show()
+def season(data):
+    data.columns = data.columns.astype(datetime.date)
 
-    from pylab import rcParams
-    rcParams['figure.figsize'] = 11, 9
+    y = data.resample('AS').mean()
+
+    y = y[start:end]
+    seasonplot1 = y.plot(figsize=(15, 6))
+    plt.show(seasonplot1)
 
     decomposition = data.tsa.seasonal_decompose(y, model='additive')
     fig = decomposition.plot()
-    plt.show()
+    plt.show(fig)
