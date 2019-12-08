@@ -9,8 +9,8 @@ for country in countries:
     append = dict.get(country, 'alpha-3')
     iso3.append(append)
 
-temperature = f.wbclimate("tas", "year", iso3, export=True)
-rain = f.wbclimate("pr", "year", iso3, export=True)
+#temperature = f.wbclimate("tas", "year", iso3, export=True)
+#rain = f.wbclimate("pr", "year", iso3, export=True)
 migration = f.wbdataset('SM.POP.NETM', iso3, 1900, 2019, export=True)
 arable_land = f.wbdataset('AG.LND.ARBL.ZS', iso3, 1900, 2019, export=True)
 forest = f.wbdataset('AG.LND.FRST.ZS', iso3, 1900, 2019, export=True)
