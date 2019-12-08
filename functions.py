@@ -77,14 +77,13 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export =
                 response = requests.get(url)
                 if response.ok:
                     data = json.loads(response.content)
-                    data = data.remove(data[0])
+                    data.remove(data[0])
                     varname = None
-                    if not data:
-                        varname = data[0][0].get('indicator').get('value')
                     templist = []
                     columnlist = []
-                    for list in data:
-                        if list is not None:
+                    if data is None:
+                        varname = data[1]
+                        for list in data[1:]:
                             for entry in list:
                                 templist.append(entry.get("value"))
                                 columnlist.append(entry.get("date"))
