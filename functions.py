@@ -1,10 +1,9 @@
 '''This file is used to define custom functions'''
 
-
 import json
-import requests
 import pandas as pd
-
+import requests
+import matplotlib.pyplot as plt
 
 
 def wbclimate(variable, timescale, countriesList, export=False):
@@ -49,7 +48,7 @@ def wbclimate(variable, timescale, countriesList, export=False):
         return dataset
 
 
-def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export = False):
+def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=False):
     """ retrieve data from world bank
 
         topic is available on the data viewer of the world bank (e.g. SM.POP.NETM)
@@ -66,12 +65,13 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export =
     elif startdate == enddate:
         url_extension = '/indicators/' + topic + "?date=" + startdate + "&format=json&per_page=1000"
     else:
-        url_extension = '/indicators/' + topic + "?date=" + str(startdate) + ":" + str(enddate) + "&format=json&per_page=1000"
+        url_extension = '/indicators/' + topic + "?date=" + str(startdate) + ":" + str(
+            enddate) + "&format=json&per_page=1000"
 
     while len(countries) > 0:
         for country in countries:
             try:
-                url = url_base + country+url_extension
+                url = url_base + country + url_extension
                 response = requests.get(url)
                 if response.ok:
                     data = json.loads(response.content)
@@ -114,8 +114,21 @@ def savefile(data, name):
     with open(name, "w") as file:
         json.dump(data, file)
 
+
 "seasonality testing"
 
-import pandas as pd
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
+
+
+def name(data)
+    data.index
+    y = data.resample('AS').mean()
+    y[1960:2019]
+    y.plot(figsize=(15, 6))
+    plt.show()
+
+    from pylab import rcParams
+    rcParams['figure.figsize'] = 11, 9
+
+    decomposition = data.tsa.seasonal_decompose(y, model='additive')
+    fig = decomposition.plot()
+    plt.show()
