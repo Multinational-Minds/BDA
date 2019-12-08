@@ -114,3 +114,8 @@ def savefile(data, name):
     with open(name, "w") as file:
         json.dump(data, file)
 
+"seasonality testing"
+
+import pandas as pd
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
