@@ -1,5 +1,5 @@
 '''This file should be used for cleaning datasets and joining them to make one large pandas dataframe'''
-
+import pandas as pd
 import functions as f
 
 arable = f.openfile("arable land.csv")

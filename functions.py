@@ -31,7 +31,8 @@ def wbclimate(variable, timescale, countriesList, export=False):
                     for entry in data:
                         templist.append(entry.get("data"))
                         columnlist.append(entry.get("year"))
-                    newdf = pd.DataFrame([templist], columns=columnlist, index=[country])
+                    index = pd.MultiIndex([(country, variable)])
+                    newdf = pd.DataFrame([templist], columns=columnlist, index=index)
                     dataset = dataset.append(newdf)
                     countries_done.append(country)
                     remaining = len(countriesList) - len(countries_done)
