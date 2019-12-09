@@ -16,6 +16,8 @@ migration = f.wbdataset('SM.POP.NETM', iso3, 1960, 2012, export=True, name='migr
 arable_land = f.wbdataset('AG.LND.ARBL.ZS', iso3, 1900, 2012, export=True, name='arable land')
 forest = f.wbdataset('AG.LND.FRST.ZS', iso3, 1900, 2012, export=True, name='forest')
 pop_growth = f.wbdataset('SP.POP.GROW', iso3, 1900, 2012, export=True, name='population growth')
-pop_total = f.wbdataset('SP.POP.TOTL', iso3, 1900, 2012, export=True, name='total population')
+total_pop = f.wbdataset('SP.POP.TOTL', iso3, 1900, 2012, export=True, name='total population')
 greenhouse_gasses = f.wbdataset('EN.ATM.GHGT.KT.CE', iso3, 1900, 2012, export=True, name='greenhouse gasses')
-
+dataset = pd.concat(
+    [temperature, rain, migration, arable_land, forest, pop_growth, total_pop, greenhouse_gasses]).sort_index(axis=0)
+f.savefile(dataset, 'dataset')

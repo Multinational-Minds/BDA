@@ -89,7 +89,7 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
                         for list in data:
                             for entry in list:
                                 templist.append(entry.get("value"))
-                                columnlist.append(entry.get("date"))
+                                columnlist.append(int(entry.get("date")))
                     levels = ([country], [varname])
                     index = pd.MultiIndex.from_product(levels)
                     newdf = pd.DataFrame([templist], columns=columnlist, index=index)
@@ -132,7 +132,7 @@ def savefile(data, name, csv=True):
         name = name + ".csv"
         data.to_csv(name)
     else:
-        with open(name, "w") as file:
-            json.dump(data+'.json', file)
+        name = name + ".h5"
+        data.to_hdf(name, key=str(name), mode='a')
 
 
