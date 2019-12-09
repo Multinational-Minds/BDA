@@ -1,13 +1,12 @@
 '''This file is used to define custom functions'''
-import datetime
-import json
-import pandas as pd
-import requests
-import matplotlib.pyplot as plt
-from pylab import rcParams
-rcParams['figure.figsize'] = 11, 9
 
-def wbclimate(variable, timescale, countriesList, export=False):
+import json
+import requests
+import pandas as pd
+import tables
+
+
+def wbclimate(variable, timescale, countriesList, export=False, name =''):
     """ retrieve historical climate data
 
     variable is either tas or pr
@@ -31,7 +30,9 @@ def wbclimate(variable, timescale, countriesList, export=False):
                     for entry in data:
                         templist.append(entry.get("data"))
                         columnlist.append(entry.get("year"))
-                    newdf = pd.DataFrame([templist], columns=columnlist, index=[country])
+                    levels = ([country], [variable])
+                    index = pd.MultiIndex.from_product(levels)
+                    newdf = pd.DataFrame([templist], columns=columnlist, index=index)
                     dataset = dataset.append(newdf)
                     countries_done.append(country)
                     remaining = len(countriesList) - len(countries_done)
@@ -44,12 +45,14 @@ def wbclimate(variable, timescale, countriesList, export=False):
     else:
 
         if export:
-            name = input('file name: ') + ".csv"
-            dataset.to_csv(name)
+            if len(name) == 0:
+                name = input('file name: ')
+            name = name + ".h5"
+            dataset.to_hdf(name, key= str(variable),mode ='a')
         return dataset
 
 
-def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=False):
+def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=False, name=''):
     """ retrieve data from world bank
 
         topic is available on the data viewer of the world bank (e.g. SM.POP.NETM)
@@ -58,6 +61,7 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
         export = True will export the retrieved data as a csv and will ask for a name in the console
         """
     dataset = pd.DataFrame()
+    varname = None
     countries_done = []
     countries = countriesList
     url_base = 'http://api.worldbank.org/countries/'
@@ -77,14 +81,18 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
                 if response.ok:
                     data = json.loads(response.content)
                     data.remove(data[0])
+
                     templist = []
                     columnlist = []
-                    for list in data:
-                        if list is not None:
+                    if len(data) > 0 and data[0] is not None:
+                        varname = data[0][1].get('indicator').get('value')
+                        for list in data:
                             for entry in list:
                                 templist.append(entry.get("value"))
                                 columnlist.append(entry.get("date"))
-                    newdf = pd.DataFrame([templist], columns=columnlist, index=[country])
+                    levels = ([country], [varname])
+                    index = pd.MultiIndex.from_product(levels)
+                    newdf = pd.DataFrame([templist], columns=columnlist, index=index)
                     dataset = dataset.append(newdf)
                     countries_done.append(country)
                     remaining = len(countriesList) - len(countries_done)
@@ -96,8 +104,10 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
                 countries = [x for x in countriesList if x not in countries_done]
     else:
         if export:
-            name = input('file name: ') + ".csv"
-            dataset.to_csv(name)
+            if len(name) == 0:
+                name = input('file name: ')
+            name = name + ".h5"
+            dataset.to_hdf(name, key= str(varname), mode = 'a')
         return dataset
 
 
@@ -109,26 +119,20 @@ def openfile(name):
         with open(name, "r") as file:
             data = pd.read_csv(file)
             return data
+    elif str(name).lower().endswith('.txt'):
+        with open(name, "r") as file:
+            return json.load(file)
+    elif str(name).lower().endswith('.h5'):
+            data = pd.read_hdf(name)
+            return data
 
 
-def savefile(data, name):
-    with open(name, "w") as file:
-        json.dump(data, file)
+def savefile(data, name, csv=True):
+    if csv:
+        name = name + ".csv"
+        data.to_csv(name)
+    else:
+        with open(name, "w") as file:
+            json.dump(data+'.json', file)
 
 
-"seasonality testing"
-
-
-
-def season(data):
-    data.columns = data.columns.astype(datetime.date)
-
-    y = data.resample('AS').mean()
-
-    y = y[start:end]
-    seasonplot1 = y.plot(figsize=(15, 6))
-    plt.show(seasonplot1)
-
-    decomposition = data.tsa.seasonal_decompose(y, model='additive')
-    fig = decomposition.plot()
-    plt.show(fig)
