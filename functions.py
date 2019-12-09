@@ -1,13 +1,12 @@
 '''This file is used to define custom functions'''
 
-
 import json
 import requests
 import pandas as pd
+import tables
 
 
-
-def wbclimate(variable, timescale, countriesList, export=False):
+def wbclimate(variable, timescale, countriesList, export=False, name =''):
     """ retrieve historical climate data
 
     variable is either tas or pr
@@ -46,12 +45,14 @@ def wbclimate(variable, timescale, countriesList, export=False):
     else:
 
         if export:
-            name = input('file name: ') + ".csv"
-            dataset.to_csv(name)
+            if len(name) == 0:
+                name = input('file name: ')
+            name = name + ".h5"
+            dataset.to_hdf(name, key= str(variable),mode ='a')
         return dataset
 
 
-def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export = False):
+def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=False, name=''):
     """ retrieve data from world bank
 
         topic is available on the data viewer of the world bank (e.g. SM.POP.NETM)
@@ -60,6 +61,7 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export =
         export = True will export the retrieved data as a csv and will ask for a name in the console
         """
     dataset = pd.DataFrame()
+    varname = None
     countries_done = []
     countries = countriesList
     url_base = 'http://api.worldbank.org/countries/'
@@ -68,22 +70,23 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export =
     elif startdate == enddate:
         url_extension = '/indicators/' + topic + "?date=" + startdate + "&format=json&per_page=1000"
     else:
-        url_extension = '/indicators/' + topic + "?date=" + str(startdate) + ":" + str(enddate) + "&format=json&per_page=1000"
+        url_extension = '/indicators/' + topic + "?date=" + str(startdate) + ":" + str(
+            enddate) + "&format=json&per_page=1000"
 
     while len(countries) > 0:
         for country in countries:
             try:
-                url = url_base + country+url_extension
+                url = url_base + country + url_extension
                 response = requests.get(url)
                 if response.ok:
                     data = json.loads(response.content)
                     data.remove(data[0])
-                    varname = None
+
                     templist = []
                     columnlist = []
-                    if data is None:
-                        varname = data[1]
-                        for list in data[1:]:
+                    if len(data) > 0 and data[0] is not None:
+                        varname = data[0][1].get('indicator').get('value')
+                        for list in data:
                             for entry in list:
                                 templist.append(entry.get("value"))
                                 columnlist.append(entry.get("date"))
@@ -101,8 +104,10 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export =
                 countries = [x for x in countriesList if x not in countries_done]
     else:
         if export:
-            name = input('file name: ') + ".csv"
-            dataset.to_csv(name)
+            if len(name) == 0:
+                name = input('file name: ')
+            name = name + ".h5"
+            dataset.to_hdf(name, key= str(varname), mode = 'a')
         return dataset
 
 
@@ -117,9 +122,17 @@ def openfile(name):
     elif str(name).lower().endswith('.txt'):
         with open(name, "r") as file:
             return json.load(file)
+    elif str(name).lower().endswith('.h5'):
+            data = pd.read_hdf(name)
+            return data
 
 
-def savefile(data, name):
-    with open(name, "w") as file:
-        json.dump(data, file)
+def savefile(data, name, csv=True):
+    if csv:
+        name = name + ".csv"
+        data.to_csv(name)
+    else:
+        with open(name, "w") as file:
+            json.dump(data+'.json', file)
+
 
