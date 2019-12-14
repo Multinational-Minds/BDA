@@ -1,8 +1,11 @@
 '''This file should be used for cleaning datasets and joining them to make one large pandas dataframe'''
+import datetime
+
 from statsmodels.graphics.tsaplots import plot_acf
 import statsmodels.api as sm
 
 import pandas as pd
+import numpy as np
 import functions as f
 
 arable = f.openfile("arable land.h5")
@@ -21,8 +24,12 @@ sm.graphics.tsa.plot_acf(arable, lags=40)
 plot_acf(arable.transpose())  '''
 
 dataset1 = dataset.drop(dataset.iloc[:,0:59], inplace = True, axis = 1)
-f.savefile(dataset, "1960onwards data", csv = True)
 
+year2007 = datetime.date(2007, 1, 1)
+dataset[year2007].replace('', np.nan, inplace=True)
+dataset.dropna(subset=[year2007], inplace=True)
+
+f.savefile(dataset, "test data", csv = True)
 
 
 
