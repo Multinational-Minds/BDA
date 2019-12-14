@@ -3,9 +3,7 @@ import datetime
 import json
 import requests
 import pandas as pd
-import statsmodels.api as sm
 import matplotlib.pyplot as plt
-from statsmodels.graphics.tsaplots import plot_acf
 
 
 import tables
@@ -152,3 +150,5 @@ def season(data):
     decomposition = data.tsa.seasonal_decompose(y, model='additive')
     fig = decomposition.plot()
     plt.show(fig)
+
+
