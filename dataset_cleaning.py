@@ -10,8 +10,7 @@ pop_growth = f.openfile("population growth.h5")
 rain = f.openfile("rain.h5")
 temperature = f.openfile("temperature.h5")
 total_pop = f.openfile("total population.h5")
-
-inter = pd.concat([rain[1960:2012], migration], sort=True)
 dataset = pd.concat(
     [temperature, rain, migration, arable, forest, pop_growth, total_pop, greenhouse_gasses]).sort_index(axis=0)
-f.savefile(dataset, 'dataset')
+
+
