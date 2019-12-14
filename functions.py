@@ -1,8 +1,13 @@
 '''This file is used to define custom functions'''
-
+import datetime
 import json
 import requests
 import pandas as pd
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+
 import tables
 
 
@@ -29,7 +34,8 @@ def wbclimate(variable, timescale, countriesList, export=False, name =''):
                     columnlist = []
                     for entry in data:
                         templist.append(entry.get("data"))
-                        columnlist.append(entry.get("year"))
+                        date = datetime.date(year=int(entry.get("year")), month = 1, day=1)
+                        columnlist.append(date)
                     levels = ([country], [variable])
                     index = pd.MultiIndex.from_product(levels)
                     newdf = pd.DataFrame([templist], columns=columnlist, index=index)
@@ -89,7 +95,8 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
                         for list in data:
                             for entry in list:
                                 templist.append(entry.get("value"))
-                                columnlist.append(int(entry.get("date")))
+                                date = datetime.date(year=int(entry.get("date")), month=1, day=1)
+                                columnlist.append(date)
                     levels = ([country], [varname])
                     index = pd.MultiIndex.from_product(levels)
                     newdf = pd.DataFrame([templist], columns=columnlist, index=index)
@@ -136,3 +143,12 @@ def savefile(data, name, csv=True):
         data.to_hdf(name, key=str(name), mode='a')
 
 
+def season(data):
+    y = data.resample('AS').mean()
+    y = y[1960:2012]
+    seasonplot1 = y.plot(figsize=(15, 6))
+    plt.show(seasonplot1)
+
+    decomposition = data.tsa.seasonal_decompose(y, model='additive')
+    fig = decomposition.plot()
+    plt.show(fig)

@@ -12,5 +12,4 @@ temperature = f.openfile("temperature.h5")
 total_pop = f.openfile("total population.h5")
 dataset = pd.concat(
     [temperature, rain, migration, arable, forest, pop_growth, total_pop, greenhouse_gasses]).sort_index(axis=0)
-
-
+f.season(arable.transpose())
