@@ -8,8 +8,6 @@ import numpy as np
 import functions as f
 
 arable = f.openfile("arable land.h5")
-forest = f.openfile("forest.h5")
-greenhouse_gasses = f.openfile("greenhouse gasses.h5")
 migration = f.openfile("migration.h5")
 pop_growth = f.openfile("population growth.h5")
 rain = f.openfile("rain.h5")

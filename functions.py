@@ -92,7 +92,11 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
                         varname = data[0][1].get('indicator').get('value')
                         for list in data:
                             for entry in list:
-                                templist.append(float(entry.get("value")))
+                                value = entry.get("value")
+                                if value is not None:
+                                    templist.append(float(value))
+                                else:
+                                    templist.append(None)
                                 date = datetime.date(year=int(entry.get("date")), month=1, day=1)
                                 columnlist.append(date)
                     levels = ([country], [varname])
