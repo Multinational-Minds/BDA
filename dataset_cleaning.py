@@ -13,10 +13,7 @@ temperature = f.openfile("temperature.h5")
 total_pop = f.openfile("total population.h5")
 dataset = pd.concat(
     [temperature, rain, migration, arable, pop_growth, total_pop], sort=True).sort_index(axis=0)
-"f.season(arable.transpose())"
-'''f.savefile(arable,"arrrrrable", csv=True)
-sm.graphics.tsa.plot_acf(arable, lags=40)
-plot_acf(arable.transpose())  '''
+
 dataset.drop(dataset.iloc[:, 0:59], inplace=True, axis=1)
 year2007 = datetime.date(2007, 1, 1)
 dataset[year2007].replace('', np.nan, inplace=True)
@@ -51,3 +48,5 @@ for index, df in data.groupby(level=0):
 
 data = data.transpose()
 f.savefile(data, "data", csv=False)
+
+
