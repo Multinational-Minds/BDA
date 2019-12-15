@@ -16,7 +16,7 @@ rain = f.openfile("rain.h5")
 temperature = f.openfile("temperature.h5")
 total_pop = f.openfile("total population.h5")
 dataset = pd.concat(
-    [temperature, rain, migration, arable, pop_growth, total_pop]).sort_index(axis=0)
+    [temperature, rain, migration, arable, pop_growth, total_pop], sort=True).sort_index(axis=0)
 "f.season(arable.transpose())"
 '''f.savefile(arable,"arrrrrable", csv=True)
 sm.graphics.tsa.plot_acf(arable, lags=40)
@@ -28,4 +28,11 @@ dataset.dropna(subset=[year2007], inplace=True)
 for index, df in dataset.groupby(level=0):
     if len(df.index) < 5:
         dataset = dataset.drop(index, level=0)
-f.savefile(dataset, "test data", csv=True)
+
+idx = dataset.index.levels[1].str.replace('%', '%25')
+dataset.index = dataset.index.set_levels(idx, level=1)
+dataset = dataset.transpose()
+
+
+f.savefile(dataset, "dataset", csv= False)
+

@@ -31,7 +31,7 @@ def wbclimate(variable, timescale, countriesList, export=False, name =''):
                     templist = []
                     columnlist = []
                     for entry in data:
-                        templist.append(entry.get("data"))
+                        templist.append(float(entry.get("data")))
                         date = datetime.date(year=int(entry.get("year")), month = 1, day=1)
                         columnlist.append(date)
                     levels = ([country], [variable])
@@ -92,7 +92,7 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
                         varname = data[0][1].get('indicator').get('value')
                         for list in data:
                             for entry in list:
-                                templist.append(entry.get("value"))
+                                templist.append(float(entry.get("value")))
                                 date = datetime.date(year=int(entry.get("date")), month=1, day=1)
                                 columnlist.append(date)
                     levels = ([country], [varname])
