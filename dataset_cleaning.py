@@ -1,7 +1,6 @@
 '''This file should be used for cleaning datasets and joining them to make one large pandas dataframe'''
 import datetime
 
-
 import pandas as pd
 import numpy as np
 import functions as f
@@ -43,7 +42,12 @@ for name in rownames:
     frame = {name: series}
     tempdf = pd.DataFrame(frame)
     data = pd.concat([data, tempdf], axis=1)
-data = data.transpose()
-f.savefile(data, "data")
 
-print("hello fien")
+data.replace('', np.nan, inplace=True)
+data = data.dropna()
+for index, df in data.groupby(level=0):
+    if len(df.index) < 6:
+        data = data.drop(index, level=0)
+
+data = data.transpose()
+f.savefile(data, "data", csv=False)
