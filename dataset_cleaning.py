@@ -1,7 +1,6 @@
 '''This file should be used for cleaning datasets and joining them to make one large pandas dataframe'''
 import datetime
 
-from numpy.ma import count
 
 import pandas as pd
 import numpy as np
@@ -31,6 +30,18 @@ idx = dataset.index.levels[1].str.replace('%', '%25')
 dataset.index = dataset.index.set_levels(idx, level=1)
 dataset = dataset.transpose()
 
-
-f.savefile(dataset, "dataset", csv= False)
-
+rownames = list(dataset.index.values)
+rownames = rownames[0::5]
+count = 5
+previouscount = 0
+data = pd.DataFrame()
+for name in rownames:
+    series = dataset[previouscount:count]
+    count = count + 5
+    previouscount = previouscount + 5
+    series = series.mean()
+    frame = {name: series}
+    tempdf = pd.DataFrame(frame)
+    data = pd.concat([data, tempdf], axis=1)
+data = data.transpose()
+f.savefile(data, "data")
