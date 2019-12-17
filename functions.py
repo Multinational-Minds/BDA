@@ -1,13 +1,9 @@
 '''This file is used to define custom functions'''
 import datetime
 import json
-import requests
 import pandas as pd
-import matplotlib.pyplot as plt
+import requests
 import statsmodels.api as sm
-
-
-import tables
 
 
 def wbclimate(variable, timescale, countriesList, export=False, name =''):

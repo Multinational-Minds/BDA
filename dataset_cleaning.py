@@ -1,12 +1,9 @@
 '''This file should be used for cleaning datasets and joining them to make one large pandas dataframe'''
 import datetime
 
-import pandas as pd
 import numpy as np
 import pandas as pd
 import functions as f
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 arable = f.openfile("arable land.h5")
 migration = f.openfile("migration.h5")
