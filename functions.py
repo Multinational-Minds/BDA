@@ -4,6 +4,7 @@ import json
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 
 
 import tables
@@ -145,14 +146,19 @@ def savefile(data, name, csv=True):
         data.to_hdf(name, key=str(name), mode='a')
 
 
-def season(data):
-    y = data.resample('AS').mean()
-    y = y[1960:2012]
-    seasonplot1 = y.plot(figsize=(15, 6))
-    plt.show(seasonplot1)
+def season(data, variable):
+    series = data.xs(variable, level = 1, axis=1).mean(axis = 1)
+    idx = series.index.values
+    idx = pd.DatetimeIndex(idx)
+    frame = {"worldwide "+': '+variable:series}
+    data = pd.DataFrame(frame)
+    data = data.set_index(idx)
 
-    decomposition = data.tsa.seasonal_decompose(y, model='additive')
+    decomposition = sm.tsa.seasonal_decompose(data, model='additive')
     fig = decomposition.plot()
-    plt.show(fig)
+    fig.suptitle("Seasonality: worldwide "+variable)
+
+    fig.savefig('seasonality.png')
+
 
 

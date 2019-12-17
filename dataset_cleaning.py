@@ -1,7 +1,6 @@
 '''This file should be used for cleaning datasets and joining them to make one large pandas dataframe'''
 import datetime
 
-
 import pandas as pd
 import numpy as np
 import functions as f
@@ -14,10 +13,7 @@ temperature = f.openfile("temperature.h5")
 total_pop = f.openfile("total population.h5")
 dataset = pd.concat(
     [temperature, rain, migration, arable, pop_growth, total_pop], sort=True).sort_index(axis=0)
-"f.season(arable.transpose())"
-'''f.savefile(arable,"arrrrrable", csv=True)
-sm.graphics.tsa.plot_acf(arable, lags=40)
-plot_acf(arable.transpose())  '''
+
 dataset.drop(dataset.iloc[:, 0:59], inplace=True, axis=1)
 year2007 = datetime.date(2007, 1, 1)
 dataset[year2007].replace('', np.nan, inplace=True)
@@ -43,9 +39,14 @@ for name in rownames:
     frame = {name: series}
     tempdf = pd.DataFrame(frame)
     data = pd.concat([data, tempdf], axis=1)
+
+data.replace('', np.nan, inplace=True)
+data = data.dropna()
+for index, df in data.groupby(level=0):
+    if len(df.index) < 6:
+        data = data.drop(index, level=0)
+
 data = data.transpose()
-f.savefile(data, "data")
+f.savefile(data, "data", csv=False)
 
-print('hallowkes Piedro')
 
-print("hello fien")
