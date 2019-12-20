@@ -12,7 +12,14 @@ rain = f.openfile("rain.h5")
 temperature = f.openfile("temperature.h5")
 total_pop = f.openfile("total population.h5")
 dataset = pd.concat(
-    [temperature, rain, migration, arable, pop_growth, total_pop], sort=True).sort_index(axis=0)
+    [temperature, rain, migration, arable, pop_growth, total_pop], sort=True)
+dataset.columns = dataset.columns.str.replace('%', '%25')
+
+dataset2 = pd.DataFrame()
+datalist = [temperature, rain, migration, arable, pop_growth, total_pop]
+for data in datalist:
+    dataset2 = dataset2.append(data)
+dataset2.columns = dataset2.columns.str.replace('%', '%25')
 
 dataset.drop(dataset.iloc[:, 0:59], inplace=True, axis=1)
 year2007 = datetime.date(2007, 1, 1)
@@ -21,10 +28,6 @@ dataset.dropna(subset=[year2007], inplace=True)
 for index, df in dataset.groupby(level=0):
     if len(df.index) < 5:
         dataset = dataset.drop(index, level=0)
-
-idx = dataset.index.levels[1].str.replace('%', '%25')
-dataset.index = dataset.index.set_levels(idx, level=1)
-dataset = dataset.transpose()
 
 rownames = list(dataset.index.values)
 rownames = rownames[0::5]
