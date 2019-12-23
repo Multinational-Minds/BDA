@@ -31,9 +31,8 @@ def wbclimate(variable, timescale, countriesList, export=False, name =''):
                         templist.append(float(entry.get("data")))
                         date = datetime.date(year=int(entry.get("year")), month = 1, day=1)
                         columnlist.append(date)
-                    levels = ([country], [variable])
-                    index = pd.MultiIndex.from_product(levels)
-                    newdf = pd.DataFrame([templist], columns=columnlist, index=index)
+                    newdf = pd.DataFrame(
+                        {str(variable): templist, 'year': columnlist, 'country': [country] * len(templist)})
                     dataset = dataset.append(newdf)
                     countries_done.append(country)
                     remaining = len(countriesList) - len(countries_done)
@@ -96,9 +95,8 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
                                     templist.append(None)
                                 date = datetime.date(year=int(entry.get("date")), month=1, day=1)
                                 columnlist.append(date)
-                    levels = ([country], [varname])
-                    index = pd.MultiIndex.from_product(levels)
-                    newdf = pd.DataFrame([templist], columns=columnlist, index=index)
+                    newdf = pd.DataFrame(
+                        {str(varname): templist, 'year': columnlist, 'country': [country] * len(templist)})
                     dataset = dataset.append(newdf)
                     countries_done.append(country)
                     remaining = len(countriesList) - len(countries_done)
