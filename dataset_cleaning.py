@@ -35,4 +35,4 @@ for country in iso3:
     append = append.dropna()
     data = data.append(append, ignore_index=True)
 
-f.savefile(dataset, "data", csv=False)
+f.savefile(data, "data", csv=False)

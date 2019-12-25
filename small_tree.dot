@@ -1,0 +1,29 @@
+digraph Tree {
+node [shape=box, style="rounded", color="black", fontname=helvetica] ;
+edge [fontname=helvetica] ;
+0 [label="country_USA <= 0.5\nmse = 195991061233.0\nsamples = 897\nvalue = -20035.9"] ;
+1 [label="Population, total <= 1095858656.0\nmse = 153175899555.2\nsamples = 894\nvalue = -28815.9"] ;
+0 -> 1 [labeldistance=2.5, labelangle=45, headlabel="True"] ;
+2 [label="tas <= -2.7\nmse = 135734608390.0\nsamples = 889\nvalue = -20210.9"] ;
+1 -> 2 ;
+3 [label="mse = 386935868172.5\nsamples = 10\nvalue = 1094642.1"] ;
+2 -> 3 ;
+4 [label="mse = 119454687469.6\nsamples = 879\nvalue = -32250.4"] ;
+2 -> 4 ;
+5 [label="tas <= 7.3\nmse = 162657569660.9\nsamples = 5\nvalue = -2042383.3"] ;
+1 -> 5 ;
+6 [label="mse = 37971984480.2\nsamples = 2\nvalue = -1689998.7"] ;
+5 -> 6 ;
+7 [label="mse = 38993248238.0\nsamples = 3\nvalue = -2394768.0"] ;
+5 -> 7 ;
+8 [label="Arable land (%25 of land area) <= 19.2\nmse = 3254028359054.9\nsamples = 3\nvalue = 4106567.7"] ;
+0 -> 8 [labeldistance=2.5, labelangle=-45, headlabel="False"] ;
+9 [label="Population growth (annual %25) <= 0.9\nmse = 2202565692.2\nsamples = 2\nvalue = 5381824.5"] ;
+8 -> 9 ;
+10 [label="mse = 0.0\nsamples = 1\nvalue = 5428756.0"] ;
+9 -> 10 ;
+11 [label="mse = 0.0\nsamples = 1\nvalue = 5334893.0"] ;
+9 -> 11 ;
+12 [label="mse = 0.0\nsamples = 1\nvalue = 1556054.0"] ;
+8 -> 12 ;
+}
