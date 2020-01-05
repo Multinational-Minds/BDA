@@ -12,7 +12,7 @@ os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/graphviz/release/bin/
 
 data = f.openfile('data.h5')
 
-labels = np.array(-1 * data['Net migration'])
+labels = np.array(data['Net migration'])
 features = data.drop('Net migration', axis=1)
 features['year'] = features['year'].apply(lambda x: str(x.year))
 features = pd.get_dummies(features)
@@ -53,8 +53,7 @@ importances = feature_importances[:15]
 f.savefile(feature_importances, "rf_feature importances")
 
 fig = importances.plot(kind='barh', y='importance')
-plt.savefig('random_forest features.png')
-plt.show()
+lt.show()
 
 rf_most_important = RandomForestRegressor(n_estimators=1000)
 important_indices = list(importances[:9].index)
@@ -79,6 +78,5 @@ plt.legend()
 plt.xlabel('key')
 plt.ylabel('Net Migration')
 plt.title('Actual and Predicted Values')
-plt.savefig('rf actual vs predicted.png')
 plt.gca().axes.get_xaxis().set_visible(False)
 plt.show()
