@@ -6,7 +6,7 @@ import requests
 import statsmodels.api as sm
 
 
-def wbclimate(variable, timescale, countriesList, export=False, name =''):
+def wbclimate(variable, timescale, countriesList, export=False, name=''):
     """ retrieve historical climate data
 
     variable is either tas or pr
@@ -29,7 +29,7 @@ def wbclimate(variable, timescale, countriesList, export=False, name =''):
                     columnlist = []
                     for entry in data:
                         templist.append(float(entry.get("data")))
-                        date = datetime.date(year=int(entry.get("year")), month = 1, day=1)
+                        date = datetime.date(year=int(entry.get("year")), month=1, day=1)
                         columnlist.append(date)
                     newdf = pd.DataFrame(
                         {str(variable): templist, 'year': columnlist, 'country': [country] * len(templist)})
@@ -48,7 +48,7 @@ def wbclimate(variable, timescale, countriesList, export=False, name =''):
             if len(name) == 0:
                 name = input('file name: ')
             name = name + ".h5"
-            dataset.to_hdf(name, key= str(variable),mode ='a')
+            dataset.to_hdf(name, key=str(variable), mode='a')
         return dataset
 
 
@@ -111,7 +111,7 @@ def wbdataset(topic, countriesList="all", startdate=None, enddate=None, export=F
             if len(name) == 0:
                 name = input('file name: ')
             name = name + ".h5"
-            dataset.to_hdf(name, key= str(varname), mode = 'a')
+            dataset.to_hdf(name, key=str(varname), mode='a')
         return dataset
 
 
@@ -127,8 +127,8 @@ def openfile(name):
         with open(name, "r") as file:
             return json.load(file)
     elif str(name).lower().endswith('.h5'):
-            data = pd.read_hdf(name)
-            return data
+        data = pd.read_hdf(name)
+        return data
 
 
 def savefile(data, name, csv=True):
@@ -141,18 +141,15 @@ def savefile(data, name, csv=True):
 
 
 def season(data, variable):
-    series = data.xs(variable, level = 1, axis=1).mean(axis = 1)
+    series = data.xs(variable, level=1, axis=1).mean(axis=1)
     idx = series.index.values
     idx = pd.DatetimeIndex(idx)
-    frame = {"worldwide "+': '+variable:series}
+    frame = {"worldwide " + ': ' + variable: series}
     data = pd.DataFrame(frame)
     data = data.set_index(idx)
 
     decomposition = sm.tsa.seasonal_decompose(data, model='additive')
     fig = decomposition.plot()
-    fig.suptitle("Seasonality: worldwide "+variable)
+    fig.suptitle("Seasonality: worldwide " + variable)
 
     fig.savefig('seasonality.png')
-
-
-
