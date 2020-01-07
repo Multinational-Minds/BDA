@@ -29,14 +29,17 @@ from sklearn.model_selection import KFold
 
 df = f.openfile('data.h5')
 
-"""df_1960 = df[df['year'] == '1960-01-01']
-df_num = df_1960.select_dtypes(include=['float64'])"""
-
-# data selection of specific years
-df['year'] = pd.to_datetime(df['year'])
+# data selection of specific years (1960/65)
+"""df['year'] = pd.to_datetime(df['year'])
 df_6065 = (df['year'] >= '1960-01-01') & (df['year'] < '1970-01-01')
 df1960 = df.loc[df_6065]
-df60 = df.loc[df_6065].iloc[:,2:7]
+df60 = df.loc[df_6065].iloc[:,2:8]"""
+
+# for only 1960
+df['year'] = pd.to_datetime(df['year'])
+df_6065 = (df['year'] >= '1960-01-01') & (df['year'] < '1965-01-01')
+df1960 = df.loc[df_6065]
+df60 = df.loc[df_6065].iloc[:,2:8]
 
 # all data , remove column year and country
 df_num = df.drop(columns=['year', 'country'])
@@ -48,19 +51,84 @@ df_time = df.drop(columns=['country'])
 cron = df.sort_values(by='year')
 
 
-# corr matrix for 1960/65, can loop to make for other years? otherwise manual
-"""corrmat = df1960.corr()
+# corr matrix for 1960, can loop to make for other years? otherwise manual
+corrmat = df60.corr()
 # shape correlation matrix in key-values pairs
 corrmat *= np.where(np.tri(*corrmat.shape, k=-1)==0, np.nan, 1)  # puts NaN on upper triangular matrix, including diagonal (k=-1)
 corrmat_list=corrmat.unstack().to_frame()
 corrmat_list.columns=['correlation']
 corrmat_list['abs_corr']=corrmat_list.correlation.abs()
 corrmat_list.sort_values(by=['abs_corr'], ascending=False, na_position='last', inplace=True)
-corrmat_list.drop(columns=['abs_corr']).head(10)
+# corrmat_list.drop(columns=['abs_corr']).head(10)
 
 sns.heatmap(corrmat, cmap ="YlGnBu", linewidths = 0.1)
-plt.show()"""
+plt.show()
 
+# regression analysis
+# variable distribution and relation to net migration
+# all for 1960, can be changed (looped) for other years
+
+X = df60.drop(columns=['Net migration'])
+y = df60['Net migration'].values
+
+import matplotlib.gridspec as gridspec
+
+fig = plt.figure(figsize=(10,20), constrained_layout=True)
+spec = gridspec.GridSpec(nrows=X.shape[1],ncols=2, figure=fig)  # allows to use grid location for subplots
+
+for var_index, var in enumerate(X.columns):
+    ax_left = fig.add_subplot(spec[var_index, 0])
+    sns.distplot(X[var], ax=ax_left)
+    ax_left.set_title(var + ' distribution', fontsize=10)
+    ax_right = fig.add_subplot(spec[var_index, 1])
+    ax_right.scatter(X[var], y, marker='o')
+    ax_right.set_title('Net migration vs ' + var, fontsize=10)
+    ax_right.set_xlabel(var)
+    ax_right.set_ylabel('Net migration')
+
+# plt.show()
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, shuffle=False)
+
+plt.figure(figsize=(10,6))
+sns.distplot(y_train, label='train')
+sns.distplot(y_test, label='test')
+plt.title('Target variable distribution', fontsize=20)
+plt.legend(fontsize=15)
+# plt.show()
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# get coefficients
+print('Intercept:', model.intercept_)
+print('Slope:', model.coef_)
+print(pd.DataFrame({'Variable': ['intercept'] + list(X.columns), 'Coefficient': ["{0:.5f}".format(v) for v in np.append(model.intercept_, model.coef_.flatten()).round(6)]}))
+
+# get fitted value on training set
+y_train_predicted = model.predict(X_train)
+
+# compare predictions
+print(pd.DataFrame({'True': y_train.flatten(), 'Predicted': y_train_predicted.flatten()}))
+
+# plot marginal models
+fig, ax = plt.subplots(math.ceil(X_train.shape[1] / 3), 3, figsize=(20,10), constrained_layout=True)
+ax=ax.flatten()
+
+for i, var in enumerate(X_train.columns):
+    ax[i].scatter(X_train[var], y_train,  color='gray')
+    X_train_univariate=pd.DataFrame(np.zeros(X_train.shape), columns=X_train.columns, index=X_train.index)
+    X_train_univariate[var]=X_train[var]
+    y_train_predicted_univariate=model.predict(X_train_univariate)
+    ax[i].plot(X_train[var], y_train_predicted_univariate + (y_train.mean()-y_train_predicted_univariate.mean()),
+               color='red', linewidth=2)
+    # y_train.mean()-y_train_predicted_univariate.mean() has been added only to center the line on the points
+    # what matters is the slope of the line as the intercept term cannot be "shared" among all univariate variables
+    ax[i].set_title('Net migration vs ' + var + ' - corr: ' +\
+                       str(round(corrmat_list.loc[(var, 'Net migration'),'correlation']*100)) + '%', fontsize=15)
+    ax[i].set_xlabel(var)
+    ax[i].set_ylabel('Net migration')
+plt.show()
 
 # boxplot showing variability for each variable for 1960/65 and is standardized.
 # Again, we can make a loop to run this for dif time periods
@@ -98,30 +166,6 @@ plt.scatter(x, y, marker='o')
 plt.title('Net migration vs tas 1960')
 plt.xlabel('Net migration')
 plt.ylabel('tas')
-plt.show()"""
-
-
-# variable distribution and relation to net migration
-# all for 1960/65, can be changed (looped) for other years
-
-"""X = df60.drop(columns=['Net migration'])
-y = df60['Net migration'].values
-
-import matplotlib.gridspec as gridspec
-
-fig = plt.figure(figsize=(10,20), constrained_layout=True)
-spec = gridspec.GridSpec(nrows=X.shape[1],ncols=2, figure=fig)  # allows to use grid location for subplots
-
-for var_index, var in enumerate(X.columns):
-    ax_left = fig.add_subplot(spec[var_index, 0])
-    sns.distplot(X[var], ax=ax_left)
-    ax_left.set_title(var + ' distribution', fontsize=10)
-    ax_right = fig.add_subplot(spec[var_index, 1])
-    ax_right.scatter(X[var], y, marker='o')
-    ax_right.set_title('Net migration vs ' + var, fontsize=10)
-    ax_right.set_xlabel(var)
-    ax_right.set_ylabel('Net migration')
-
 plt.show()"""
 
 
