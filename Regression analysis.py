@@ -19,13 +19,21 @@ import requests
 from itertools import product
 from tqdm import tqdm_notebook
 import math
+import itertools
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn import metrics
 from sklearn import preprocessing
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import KFold
-
+from pylab import rcParams
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
+from statsmodels.tsa.stattools import acf, pacf
+from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.tsa.api import VAR
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tools.eval_measures import rmse, aic
 
 df = f.openfile('data.h5')
 
@@ -46,14 +54,123 @@ df_num = df.drop(columns=['year', 'country'])
 
 # time series data, without countries
 df_time = df.drop(columns=['country'])
-
+df = df_time.set_index('year')
+# df = df_time.set_index('year').iloc[0:11,:] "only AFG"
 # data in cronological order 1960-2010
-cron = df.sort_values(by='year')
+"""cron = df.sort_values(by='year')
+cron = cron.set_index('year')
+cron.index
+df_mig = cron['Net migration']"""
+
+# VAR TESTING START - Vector Auto regression
+# https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
+# Plot 1 line per country
+
+fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10,6))
+for i, ax in enumerate(axes.flatten()):
+    data = df[df.columns[i]]
+    ax.plot(data, color='red', linewidth=1)
+    # Decorations
+    ax.set_title(df.columns[i])
+    ax.xaxis.set_ticks_position('none')
+    ax.yaxis.set_ticks_position('none')
+    ax.spines["top"].set_alpha(0)
+    ax.tick_params(labelsize=6)
+
+plt.tight_layout()
+
+# splits  data for train and test (all data)
+# make country specific by opening line #58, and changing nobe line#85 to 2
+# again, issue is it looks at everything, not on a country by country basis
+nobs = 188
+df_train, df_test = df[0:-nobs], df[-nobs:]
+
+def adfuller_test(series, signif=0.05, name='', verbose=False):
+    """Perform ADFuller to test for Stationarity of given series and print report"""
+    r = adfuller(series, autolag='AIC')
+    output = {'test_statistic':round(r[0], 4), 'pvalue':round(r[1], 4), 'n_lags':round(r[2], 4), 'n_obs':r[3]}
+    p_value = output['pvalue']
+    def adjust(val, length= 6): return str(val).ljust(length)
+
+    # Print Summary
+    print(f'    Augmented Dickey-Fuller Test on "{name}"', "\n   ", '-'*47)
+    print(f' Null Hypothesis: Data has unit root. Non-Stationary.')
+    print(f' Significance Level    = {signif}')
+    print(f' Test Statistic        = {output["test_statistic"]}')
+    print(f' No. Lags Chosen       = {output["n_lags"]}')
+
+    for key,val in r[4].items():
+        print(f' Critical value {adjust(key)} = {round(val, 3)}')
+
+    if p_value <= signif:
+        print(f" => P-Value = {p_value}. Rejecting Null Hypothesis.")
+        print(f" => Series is Stationary.")
+    else:
+        print(f" => P-Value = {p_value}. Weak evidence to reject the Null Hypothesis.")
+        print(f" => Series is Non-Stationary.")
+
+# runs adfuller test for each variable (all data), returns all data stationary
+# if its ran for each country individually, data is non-stationary...
+for name, column in df_train.iteritems():
+    adfuller_test(column, name=column.name)
+    print('\n')
+
+model = VAR(df)
+for i in [1,2,3,4,5,6,7,8,9]:
+    result = model.fit(i)
+    print('Lag Order =', i)
+    print('AIC : ', result.aic)
+    print('BIC : ', result.bic)
+    print('FPE : ', result.fpe)
+    print('HQIC: ', result.hqic, '\n')
+
+model_fitted = model.fit(1)
+# print(model_fitted.summary())
+
+# Get the lag order
+lag_order = model_fitted.k_ar
+print(lag_order)  #> 1
+
+# Input data for forecasting
+forecast_input = df.values[-lag_order:]
 
 
-# corr matrix for 1960, can loop to make for other years? otherwise manual
+fc = model_fitted.forecast(y=forecast_input, steps=nobs)
+df_forecast = pd.DataFrame(fc, index=df.index[-nobs:], columns=df.columns + '_2d')
+df_forecast
+
+def invert_transformation(df_train, df_forecast, second_diff=False):
+    """Revert back the differencing to get the forecast to original scale."""
+    df_fc = df_forecast.copy()
+    columns = df_train.columns
+    for col in columns:
+        # Roll back 2nd Diff
+        if second_diff:
+            df_fc[str(col)+'_1d'] = (df_train[col].iloc[-1]-df_train[col].iloc[-2]) + df_fc[str(col)+'_2d'].cumsum()
+        # Roll back 1st Diff
+        df_fc[str(col)+'_forecast'] = df_train[col].iloc[-1] + df_fc[str(col)+'_1d'].cumsum()
+    return df_fc
+
+df_results = invert_transformation(df_train, df_forecast, second_diff=True)
+
+fig, axes = plt.subplots(nrows=int(len(df.columns)/2), ncols=2, dpi=150, figsize=(10,10))
+for i, (col,ax) in enumerate(zip(df.columns, axes.flatten())):
+    df_results[col+'_forecast'].plot(legend=True, ax=ax).autoscale(axis='x',tight=True)
+    df_test[col][-nobs:].plot(legend=True, ax=ax);
+    ax.set_title(col + ": Forecast vs Actuals")
+    ax.xaxis.set_ticks_position('none')
+    ax.yaxis.set_ticks_position('none')
+    ax.spines["top"].set_alpha(0)
+    ax.tick_params(labelsize=6)
+
+plt.tight_layout()
+
+# END OF VAR TESTING
+
+
+# corr matrix and regression analysis for 1960, can loop to make for other years? otherwise manual
+"""
 corrmat = df60.corr()
-# shape correlation matrix in key-values pairs
 corrmat *= np.where(np.tri(*corrmat.shape, k=-1)==0, np.nan, 1)  # puts NaN on upper triangular matrix, including diagonal (k=-1)
 corrmat_list=corrmat.unstack().to_frame()
 corrmat_list.columns=['correlation']
@@ -74,7 +191,7 @@ y = df60['Net migration'].values
 import matplotlib.gridspec as gridspec
 
 fig = plt.figure(figsize=(10,20), constrained_layout=True)
-spec = gridspec.GridSpec(nrows=X.shape[1],ncols=2, figure=fig)  # allows to use grid location for subplots
+spec = gridspec.GridSpec(nrows=X.shape[1],ncols=2, figure=fig)
 
 for var_index, var in enumerate(X.columns):
     ax_left = fig.add_subplot(spec[var_index, 0])
@@ -86,7 +203,7 @@ for var_index, var in enumerate(X.columns):
     ax_right.set_xlabel(var)
     ax_right.set_ylabel('Net migration')
 
-# plt.show()
+plt.show()
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, shuffle=False)
 
@@ -95,7 +212,7 @@ sns.distplot(y_train, label='train')
 sns.distplot(y_test, label='test')
 plt.title('Target variable distribution', fontsize=20)
 plt.legend(fontsize=15)
-# plt.show()
+plt.show()
 
 model = LinearRegression()
 model.fit(X_train, y_train)
@@ -132,7 +249,7 @@ plt.show()
 
 # boxplot showing variability for each variable for 1960/65 and is standardized.
 # Again, we can make a loop to run this for dif time periods
-"""def box_plot(df60, standardize=True):
+def box_plot(df60, standardize=True):
     fig = plt.figure(figsize=(20, 10))
 
     if standardize == True:
@@ -155,7 +272,8 @@ IQR = Q3 - Q1
 
 dataset_outlier = df60[~((df60 < (Q1 - IQR)) |(df60 > (Q3 + IQR))).any(axis=1)]
 print('\nData size reduced from {} to {}\n'.format(df60.shape[0], dataset_outlier.shape[0]))
-box_plot(dataset_outlier)"""
+box_plot(dataset_outlier)
+"""
 
 # simple scatter plot comparing migration and tas 1960/65
 # can be changed to show other 1 on 1 relationships
@@ -172,7 +290,6 @@ plt.show()"""
 # K-fold Cross-Validation
 # Runs but does not account for time series, uses all data for kfold test/split so is not accurate :(
 # useless and bad results but might be able to apply it to useful model
-
 """X = cron.drop(columns=['year', 'country', 'Net migration'])
 y = cron['Net migration'].to_frame()
 
@@ -259,3 +376,38 @@ for train_index, test_index in splits.split(X):
 	plt.plot([None for i in train] + [x for x in test])
 	index += 1
 plt.show()"""
+
+# ARIMA regression model - cant make this one work
+"""
+lag_acf = acf(df_mig, nlags=20)
+lag_pacf = pacf(df_mig, nlags=20, method='ols')
+
+#Plot ACF:
+plt.subplot(121)
+plt.plot(lag_acf)
+plt.axhline(y=0,linestyle='--',color='gray')
+plt.axhline(y=-1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
+plt.axhline(y=1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
+plt.title('Autocorrelation Function')
+
+#Plot PACF:
+plt.subplot(122)
+plt.plot(lag_pacf)
+plt.axhline(y=0,linestyle='--',color='gray')
+plt.axhline(y=-1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
+plt.axhline(y=1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
+plt.title('Partial Autocorrelation Function')
+plt.tight_layout()
+# plt.show()
+
+# AR Model
+model = ARIMA(df_mig, order=(2, 1, 0))
+results_AR = model.fit(disp=-1)
+plt.plot(df_mig)
+plt.plot(results_AR.fittedvalues, color='red')
+plt.title('RSS: %.4f'% sum((results_AR.fittedvalues-df_mig)**2))
+plt.show()
+"""
+
+
+
