@@ -83,7 +83,8 @@ plt.tight_layout()
 # make country specific by opening line #58, and changing nobe line#85 to 2
 # again, issue is it looks at everything, not on a country by country basis
 nobs = 188
-df_train, df_test = df[0:-nobs], df[-nobs:]
+data = pd.get_dummies(cron)
+df_train, df_test = data[0:-nobs], data[-nobs:]
 
 
 def adfuller_test(series, signif=0.05, name='', verbose=False):
@@ -108,18 +109,36 @@ def adfuller_test(series, signif=0.05, name='', verbose=False):
     if p_value <= signif:
         print(f" => P-Value = {p_value}. Rejecting Null Hypothesis.")
         print(f" => Series is Stationary.")
+        return 'stat'
     else:
         print(f" => P-Value = {p_value}. Weak evidence to reject the Null Hypothesis.")
         print(f" => Series is Non-Stationary.")
+        return 'non-stat'
 
 
 # runs adfuller test for each variable (all data), returns all data stationary
 # if its ran for each country individually, data is non-stationary...
-for name, column in df_train.drop(columns=['country']).iteritems():
-    adfuller_test(column, name=name)
-    print('\n')
 
-model = VAR(pd.get_dummies(df_train))
+
+df_differenced = df_train.diff().dropna()
+stationaries = list()
+for name, column in df_differenced.iteritems():
+    res = adfuller_test(column, name=name)
+    stationaries.append(res)
+    print('\n')
+count = 0
+while stationaries.count('non-stat') >= 1:
+    count = count + 1
+    df_differenced = df_differenced.diff().dropna()
+    stationaries = list()
+    for name, column in df_differenced.iteritems():
+        res = adfuller_test(column, name=name)
+        stationaries.append(res)
+        print('\n')
+
+print('order of differences: ', count)
+
+model = VAR(df_train)
 for i in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
     result = model.fit(i)
     print('Lag Order =', i)
