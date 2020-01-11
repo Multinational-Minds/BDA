@@ -3,9 +3,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
-
 from scipy.stats import gaussian_kde
-from sklearn.cluster import KMeans
+
 
 data = f.openfile('data.h5')
 f.savefile(data, "data")
@@ -61,7 +60,7 @@ fig = plt.figure(figsize=(20, 20))
 for c, num in zip(periods, range(1, 12)):
     df0 = df_no_tas[df_no_tas['year'] == c]
     ax1 = fig.add_subplot(5, 3, num)
-    ax1 = fig.add_subplot(5, 3, num, sharex=ax1, sharey=ax1)
+    ax1 = fig.add_subplot(5, 3, num, sharex=ax1, sharey=ax1, xlabel='Temperature', ylabel='Net migration')
 
     x = df0['tas']
     y = df0['Net migration']
@@ -83,7 +82,7 @@ fig = plt.figure(figsize=(20, 20))
 for c, num in zip(periods, range(1, 12)):
     df0 = df_no_pr[df_no_pr['year'] == c]
     ax2 = fig.add_subplot(5, 3, num)
-    ax2 = fig.add_subplot(5, 3, num, sharex=ax2, sharey=ax2)
+    ax2 = fig.add_subplot(5, 3, num, sharex=ax2, sharey=ax2, xlabel='Rain', ylabel='Net migration')
 
     x = df0['pr']
     y = df0['Net migration']
@@ -105,7 +104,7 @@ fig = plt.figure(figsize=(20, 20))
 for c, num in zip(periods, range(1, 12)):
     df0 = df_no_al[df_no_al['year'] == c]
     ax3 = fig.add_subplot(5, 3, num)
-    ax3 = fig.add_subplot(5, 3, num, sharex=ax3, sharey=ax3)
+    ax3 = fig.add_subplot(5, 3, num, sharex=ax3, sharey=ax3, xlabel='Arable land', ylabel='Net migration')
 
     x = df0['Arable land (%25 of land area)']
     y = df0['Net migration']
@@ -127,7 +126,7 @@ fig = plt.figure(figsize=(20, 20))
 for c, num in zip(periods, range(1, 12)):
     df0 = df_no_pg[df_no_pg['year'] == c]
     ax4 = fig.add_subplot(5, 3, num)
-    ax4 = fig.add_subplot(5, 3, num, sharex=ax4, sharey=ax4)
+    ax4 = fig.add_subplot(5, 3, num, sharex=ax4, sharey=ax4, xlabel='Population growth', ylabel='Net migration')
 
     x = df0['Population growth (annual %25)']
     y = df0['Net migration']
@@ -149,7 +148,7 @@ fig = plt.figure(figsize=(20, 20))
 for c, num in zip(periods, range(1, 12)):
     df0 = df_no_pt[df_no_pt['year'] == c]
     ax5 = fig.add_subplot(5, 3, num)
-    ax5 = fig.add_subplot(5, 3, num, sharex=ax5, sharey=ax5)
+    ax5 = fig.add_subplot(5, 3, num, sharex=ax5, sharey=ax5, xlabel='Total population', ylabel='Net migration')
 
     x = df0['Population, total']
     y = df0['Net migration']
@@ -171,27 +170,30 @@ df.columns = ['Unnamed: 0', 'year', 'country', 'Net migration', 'temp', 'rain', 
 df.head(1)
 
 # correlation heatmap of all years
-ax = sns.heatmap(df.drop(['Unnamed: 0'], axis=1).corr(), annot=True, cmap='coolwarm')
+plt.figure(figsize=(10, 10))
+ax = sns.heatmap(df.drop(['Unnamed: 0'], axis=1).corr(), annot=True, cmap='coolwarm', square=True)
 plt.show()
 
 # correlation heatmap for every period
 
 df_num = df.drop(['Unnamed: 0'], axis=1)
-fig = plt.figure(figsize=(45, 45))
+fig = plt.figure(figsize=(45, 60))
 
 for c, num in zip(periods, range(1, 12)):
     df0 = df[df['year'] == c]
     ax = fig.add_subplot(5, 3, num)
     ax = sns.heatmap(df_num[df_num['year'] == c].corr(),
                      annot=True, annot_kws={"size": 25}, cmap='coolwarm')
-    ax.set_title(c, fontsize=40)
+    ax.set_title(c, fontsize=36)
     for tick in ax.xaxis.get_major_ticks():
-                tick.label.set_fontsize(28)
+                tick.label.set_fontsize(20)
+                tick.label.set_rotation(90)
     for tick in ax.yaxis.get_major_ticks():
-                tick.label.set_fontsize(28)
+                tick.label.set_fontsize(20)
                 tick.label.set_rotation(0)
 
-plt.tight_layout()
+fig.tight_layout()
+fig.subplots_adjust(wspace=0.2, hspace=1)
 plt.show()
 
 # check normal distribution of Net migration for every year
@@ -214,14 +216,15 @@ for period in periods:
 
     # highest correlations in descending order for every year
     df_num_corr = df_num_period.corr()['Net migration'][1:5]
-    golden_features_list = df_num_corr[abs(df_num_corr) > 0.5].sort_values(ascending=False)
+    golden_features_list = df_num_corr[abs(df_num_corr) > 0.3].sort_values(ascending=False)
     print("There is {} strongly correlated values with Net migration:\n{}".format(len(golden_features_list),
                                                                                   golden_features_list))
 
     # all variables plotted against Net migration
     for i in range(1, len(df_num_period.columns), 5):
-        sns.pairplot(data=df_num_period, x_vars=df_num_period.columns[i:i + 5], y_vars=['Net migration'], height=8,
-                     aspect=0.6)
+        g = sns.pairplot(data=df_num_period, x_vars=df_num_period.columns[i:i + 5], y_vars=['Net migration'], height=8,
+                     aspect=0.7)
+        plt.ylabel('Net migration')
         plt.show()
 
     # variables plotted against Net migration plus trend line
