@@ -37,17 +37,6 @@ from statsmodels.tools.eval_measures import rmse, aic
 
 df = f.openfile('data.h5')
 
-# data selection of specific years (1960/65)
-"""df['year'] = pd.to_datetime(df['year']) #should not be necessary as it is already a datetime object, you could parse it to a str or int to make selection easier
-df_6065 = (df['year'] >= '1960-01-01') & (df['year'] < '1970-01-01')
-df1960 = df.loc[df_6065]
-df60 = df.loc[df_6065].iloc[:,2:8]"""
-
-# for only 1960
-'''df['year'] = pd.to_datetime(df['year'])
-df_6065 = (df['year'] >= '1960-01-01') & (df['year'] < '1965-01-01')
-df1960 = df.loc[df_6065]
-df60 = df.loc[df_6065].iloc[:,2:8] #should this not be selected from df1960?'''
 
 '''I thought a dict with all the data per decade would be more useful for you so I went ahead and created that for you'''
 
@@ -64,15 +53,13 @@ df_num = df.drop(columns=['year', 'country'])
 
 # time series data, without countries
 df_time = df.drop(columns=['country'])
-# df = df_time.set_index('year').iloc[0:11,:] "only AFG"
 AFG = df.loc[(df['country'] == 'AFG')].sort_values(
-    by='year')  # you mean select this? I can again select this for each country and store it in a dict
-# data in cronological order 1960-2010
-"""cron = df.sort_values(by='year')
-cron = cron.set_index('year')
-cron.index
-df_mig = cron['Net migration']"""
+    by='year')
 cron = df.sort_values(by='year')
+
+'''We now needto check if there is any autocorrelation (due to this being a time series) left in our data 
+if so we will need to use alternative regression methods in order to account for this'''
+
 
 
 # VAR TESTING START - Vector Auto regression
@@ -149,11 +136,11 @@ lag_order = model_fitted.k_ar
 print(lag_order)  # > 1
 
 # Input data for forecasting
-forecast_input = df.values[-lag_order:]
+forecast_input = df_train.values[-lag_order:]
 
 fc = model_fitted.forecast(y=forecast_input, steps=nobs)
 df_forecast = pd.DataFrame(fc, index=df.index[-nobs:], columns=df.columns + '_2d')
-df_forecast
+
 
 
 def invert_transformation(df_train, df_forecast, second_diff=False):
@@ -188,30 +175,33 @@ plt.tight_layout()
 
 
 # corr matrix and regression analysis for 1960, can loop to make for other years? otherwise manual
-"""
-corrmat = df60.corr()
-corrmat *= np.where(np.tri(*corrmat.shape, k=-1)==0, np.nan, 1)  # puts NaN on upper triangular matrix, including diagonal (k=-1)
+df60 = dataframes[1960]
+corrmat_partial = df60.drop(columns=['country', 'year']).corr()
+
+corrmat_partial *= np.where(np.tri(*corrmat_partial.shape, k=-1) == 0, np.nan,
+                            1)  # puts NaN on upper triangular matrix, including diagonal (k=-1)
+corrmat = pd.get_dummies(df60).drop(columns=['year']).corr()
 corrmat_list=corrmat.unstack().to_frame()
 corrmat_list.columns=['correlation']
 corrmat_list['abs_corr']=corrmat_list.correlation.abs()
 corrmat_list.sort_values(by=['abs_corr'], ascending=False, na_position='last', inplace=True)
 # corrmat_list.drop(columns=['abs_corr']).head(10)
 
-sns.heatmap(corrmat, cmap ="YlGnBu", linewidths = 0.1)
+sns.heatmap(corrmat_partial, cmap="YlGnBu", linewidths=0.1)
 plt.show()
 
 # regression analysis
 # variable distribution and relation to net migration
 # all for 1960, can be changed (looped) for other years
 
-X = df60.drop(columns=['Net migration'])
+X = pd.get_dummies(df60.drop(columns=['Net migration', 'year']))
 y = df60['Net migration'].values
 
 import matplotlib.gridspec as gridspec
 
 fig = plt.figure(figsize=(10,20), constrained_layout=True)
 spec = gridspec.GridSpec(nrows=X.shape[1],ncols=2, figure=fig)
-
+'''
 for var_index, var in enumerate(X.columns):
     ax_left = fig.add_subplot(spec[var_index, 0])
     sns.distplot(X[var], ax=ax_left)
@@ -223,7 +213,7 @@ for var_index, var in enumerate(X.columns):
     ax_right.set_ylabel('Net migration')
 
 plt.show()
-
+'''
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, shuffle=False)
 
 plt.figure(figsize=(10,6))
@@ -246,6 +236,7 @@ y_train_predicted = model.predict(X_train)
 
 # compare predictions
 print(pd.DataFrame({'True': y_train.flatten(), 'Predicted': y_train_predicted.flatten()}))
+
 
 # plot marginal models
 fig, ax = plt.subplots(math.ceil(X_train.shape[1] / 3), 3, figsize=(20,10), constrained_layout=True)
@@ -292,7 +283,6 @@ IQR = Q3 - Q1
 dataset_outlier = df60[~((df60 < (Q1 - IQR)) |(df60 > (Q3 + IQR))).any(axis=1)]
 print('\nData size reduced from {} to {}\n'.format(df60.shape[0], dataset_outlier.shape[0]))
 box_plot(dataset_outlier)
-"""
 
 # simple scatter plot comparing migration and tas 1960/65
 # can be changed to show other 1 on 1 relationships
@@ -308,11 +298,9 @@ plt.show()"""
 # K-fold Cross-Validation
 # Runs but does not account for time series, uses all data for kfold test/split so is not accurate :(
 # useless and bad results but might be able to apply it to useful model
-"""X = cron.drop(columns=['year', 'country', 'Net migration'])
+X = cron.drop(columns=['year', 'country', 'Net migration'])
 y = cron['Net migration'].to_frame()
 
-model = LinearRegression()
-n_fold = 5
 
 
 def kFold_CV(X, y, model, n_fold, _display=True):
@@ -375,7 +363,7 @@ def kFold_CV(X, y, model, n_fold, _display=True):
 
 
 model = LinearRegression()
-results, model_list = kFold_CV(X, y, model, n_fold=5)"""
+results, model_list = kFold_CV(X, y, model, n_fold=10)
 
 # Time series train test split, only runs for one variable
 """X = cron['Net migration']
