@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+
 from scipy.stats import gaussian_kde
 from sklearn.cluster import KMeans
 
@@ -196,38 +197,36 @@ plt.show()
 # check normal distribution of Net migration for every year
 df_NetMigr = df[['year', 'Net migration']]
 
-df_NetMigr1960 = df_NetMigr[df_NetMigr['year'] == '1960-01-01']
-print(df_NetMigr1960.describe())
-plt.figure(figsize=(10, 10))
-sns.distplot(df_NetMigr1960['Net migration'], bins=100)
-plt.show()
-
-# histograms for all variables for every year
-df_1960 = df[df['year'] == '1960-01-01']
-
-print(df_1960.dtypes)
-
-df_num1960 = df_1960.select_dtypes(include=['float64'])
-print(df_num1960)
-
-df_num1960.hist(figsize=(20, 20), bins=100)
-plt.show()
-
-# highest correlations in descending order for every year
-df_num1960_corr = df_num1960.corr()['Net migration'][1:5]
-golden_features_list = df_num1960_corr[abs(df_num1960_corr) > 0.5].sort_values(ascending=False)
-print("There is {} strongly correlated values with Net migration:\n{}".format(len(golden_features_list), golden_features_list))
-
-# all variables plotted against Net migration
-for i in range(1, len(df_num1960.columns), 5):
-    sns.pairplot(data=df_num1960, x_vars=df_num1960.columns[i:i+5], y_vars=['Net migration'], height=8, aspect=0.6)
+for period in periods:
+    df_NetMigr_period = df_NetMigr[df_NetMigr['year'] == str(period)]
+    print(df_NetMigr_period.describe())
+    plt.figure(figsize=(10, 10))
+    sns.distplot(df_NetMigr_period['Net migration'], bins=100)
     plt.show()
 
-# variables plotted against Net migration plus trend line
-fig, ax = plt.subplots(5, figsize=(10, 20))
-for i, ax in enumerate(fig.axes):
-    if i < len(df_num1960.columns) - 1:
-        sns.regplot(x=df_num1960.columns[i+1], y='Net migration', data=df_num, ax=ax)
-plt.show()
+    # histograms for all variables for every year
+    df_period = df[df['year'] == str(period)]
 
+    df_num_period = df_period.select_dtypes(include=['float64'])
 
+    df_num_period.hist(figsize=(20, 20), bins=100)
+    plt.show()
+
+    # highest correlations in descending order for every year
+    df_num_corr = df_num_period.corr()['Net migration'][1:5]
+    golden_features_list = df_num_corr[abs(df_num_corr) > 0.5].sort_values(ascending=False)
+    print("There is {} strongly correlated values with Net migration:\n{}".format(len(golden_features_list),
+                                                                                  golden_features_list))
+
+    # all variables plotted against Net migration
+    for i in range(1, len(df_num_period.columns), 5):
+        sns.pairplot(data=df_num_period, x_vars=df_num_period.columns[i:i + 5], y_vars=['Net migration'], height=8,
+                     aspect=0.6)
+        plt.show()
+
+    # variables plotted against Net migration plus trend line
+    fig, ax = plt.subplots(5, figsize=(10, 20))
+    for i, ax in enumerate(fig.axes):
+        if i < len(df_num_period.columns) - 1:
+            sns.regplot(x=df_num_period.columns[i + 1], y='Net migration', data=df_num, ax=ax)
+    plt.show()
