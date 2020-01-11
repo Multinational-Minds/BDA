@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
 from dateutil.relativedelta import relativedelta
 from scipy.optimize import minimize
 
@@ -17,7 +16,7 @@ import datetime
 import json
 import requests
 from itertools import product
-from tqdm import tqdm_notebook
+# from tqdm import tqdm_notebook
 import math
 import itertools
 from sklearn.model_selection import train_test_split
@@ -28,6 +27,7 @@ from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import KFold
 from pylab import rcParams
 from pandas.plotting import register_matplotlib_converters
+
 register_matplotlib_converters()
 from statsmodels.tsa.stattools import acf, pacf
 from statsmodels.tsa.arima_model import ARIMA
@@ -38,35 +38,48 @@ from statsmodels.tools.eval_measures import rmse, aic
 df = f.openfile('data.h5')
 
 # data selection of specific years (1960/65)
-"""df['year'] = pd.to_datetime(df['year'])
+"""df['year'] = pd.to_datetime(df['year']) #should not be necessary as it is already a datetime object, you could parse it to a str or int to make selection easier
 df_6065 = (df['year'] >= '1960-01-01') & (df['year'] < '1970-01-01')
 df1960 = df.loc[df_6065]
 df60 = df.loc[df_6065].iloc[:,2:8]"""
 
 # for only 1960
-df['year'] = pd.to_datetime(df['year'])
+'''df['year'] = pd.to_datetime(df['year'])
 df_6065 = (df['year'] >= '1960-01-01') & (df['year'] < '1965-01-01')
 df1960 = df.loc[df_6065]
-df60 = df.loc[df_6065].iloc[:,2:8]
+df60 = df.loc[df_6065].iloc[:,2:8] #should this not be selected from df1960?'''
+
+'''I thought a dict with all the data per decade would be more useful for you so I went ahead and created that for you'''
+
+df['year'] = df['year'].apply(lambda x: int(x.year))
+
+decades = df['year'].unique()
+dataframes = {}
+for decade in decades:
+    data = df.loc[(df['year'] == decade)]
+    dataframes.update({decade: data})
 
 # all data , remove column year and country
 df_num = df.drop(columns=['year', 'country'])
 
 # time series data, without countries
 df_time = df.drop(columns=['country'])
-df = df_time.set_index('year')
 # df = df_time.set_index('year').iloc[0:11,:] "only AFG"
+AFG = df.loc[(df['country'] == 'AFG')].sort_values(
+    by='year')  # you mean select this? I can again select this for each country and store it in a dict
 # data in cronological order 1960-2010
 """cron = df.sort_values(by='year')
 cron = cron.set_index('year')
 cron.index
 df_mig = cron['Net migration']"""
+cron = df.sort_values(by='year')
+
 
 # VAR TESTING START - Vector Auto regression
 # https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
 # Plot 1 line per country
 
-fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10,6))
+fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10, 6))
 for i, ax in enumerate(axes.flatten()):
     data = df[df.columns[i]]
     ax.plot(data, color='red', linewidth=1)
@@ -85,21 +98,24 @@ plt.tight_layout()
 nobs = 188
 df_train, df_test = df[0:-nobs], df[-nobs:]
 
+
 def adfuller_test(series, signif=0.05, name='', verbose=False):
     """Perform ADFuller to test for Stationarity of given series and print report"""
     r = adfuller(series, autolag='AIC')
-    output = {'test_statistic':round(r[0], 4), 'pvalue':round(r[1], 4), 'n_lags':round(r[2], 4), 'n_obs':r[3]}
+    output = {'test_statistic': round(r[0], 4), 'pvalue': round(r[1], 4), 'n_lags': round(r[2], 4), 'n_obs': r[3]}
     p_value = output['pvalue']
-    def adjust(val, length= 6): return str(val).ljust(length)
+
+    def adjust(val, length=6):
+        return str(val).ljust(length)
 
     # Print Summary
-    print(f'    Augmented Dickey-Fuller Test on "{name}"', "\n   ", '-'*47)
+    print(f'    Augmented Dickey-Fuller Test on "{name}"', "\n   ", '-' * 47)
     print(f' Null Hypothesis: Data has unit root. Non-Stationary.')
     print(f' Significance Level    = {signif}')
     print(f' Test Statistic        = {output["test_statistic"]}')
     print(f' No. Lags Chosen       = {output["n_lags"]}')
 
-    for key,val in r[4].items():
+    for key, val in r[4].items():
         print(f' Critical value {adjust(key)} = {round(val, 3)}')
 
     if p_value <= signif:
@@ -109,14 +125,15 @@ def adfuller_test(series, signif=0.05, name='', verbose=False):
         print(f" => P-Value = {p_value}. Weak evidence to reject the Null Hypothesis.")
         print(f" => Series is Non-Stationary.")
 
+
 # runs adfuller test for each variable (all data), returns all data stationary
 # if its ran for each country individually, data is non-stationary...
-for name, column in df_train.iteritems():
-    adfuller_test(column, name=column.name)
+for name, column in df_train.drop(columns=['country']).iteritems():
+    adfuller_test(column, name=name)
     print('\n')
 
-model = VAR(df)
-for i in [1,2,3,4,5,6,7,8,9]:
+model = VAR(pd.get_dummies(df_train))
+for i in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
     result = model.fit(i)
     print('Lag Order =', i)
     print('AIC : ', result.aic)
@@ -129,15 +146,15 @@ model_fitted = model.fit(1)
 
 # Get the lag order
 lag_order = model_fitted.k_ar
-print(lag_order)  #> 1
+print(lag_order)  # > 1
 
 # Input data for forecasting
 forecast_input = df.values[-lag_order:]
 
-
 fc = model_fitted.forecast(y=forecast_input, steps=nobs)
 df_forecast = pd.DataFrame(fc, index=df.index[-nobs:], columns=df.columns + '_2d')
 df_forecast
+
 
 def invert_transformation(df_train, df_forecast, second_diff=False):
     """Revert back the differencing to get the forecast to original scale."""
@@ -146,16 +163,18 @@ def invert_transformation(df_train, df_forecast, second_diff=False):
     for col in columns:
         # Roll back 2nd Diff
         if second_diff:
-            df_fc[str(col)+'_1d'] = (df_train[col].iloc[-1]-df_train[col].iloc[-2]) + df_fc[str(col)+'_2d'].cumsum()
+            df_fc[str(col) + '_1d'] = (df_train[col].iloc[-1] - df_train[col].iloc[-2]) + df_fc[
+                str(col) + '_2d'].cumsum()
         # Roll back 1st Diff
-        df_fc[str(col)+'_forecast'] = df_train[col].iloc[-1] + df_fc[str(col)+'_1d'].cumsum()
+        df_fc[str(col) + '_forecast'] = df_train[col].iloc[-1] + df_fc[str(col) + '_1d'].cumsum()
     return df_fc
+
 
 df_results = invert_transformation(df_train, df_forecast, second_diff=True)
 
-fig, axes = plt.subplots(nrows=int(len(df.columns)/2), ncols=2, dpi=150, figsize=(10,10))
-for i, (col,ax) in enumerate(zip(df.columns, axes.flatten())):
-    df_results[col+'_forecast'].plot(legend=True, ax=ax).autoscale(axis='x',tight=True)
+fig, axes = plt.subplots(nrows=int(len(df.columns) / 2), ncols=2, dpi=150, figsize=(10, 10))
+for i, (col, ax) in enumerate(zip(df.columns, axes.flatten())):
+    df_results[col + '_forecast'].plot(legend=True, ax=ax).autoscale(axis='x', tight=True)
     df_test[col][-nobs:].plot(legend=True, ax=ax);
     ax.set_title(col + ": Forecast vs Actuals")
     ax.xaxis.set_ticks_position('none')
@@ -286,7 +305,6 @@ plt.xlabel('Net migration')
 plt.ylabel('tas')
 plt.show()"""
 
-
 # K-fold Cross-Validation
 # Runs but does not account for time series, uses all data for kfold test/split so is not accurate :(
 # useless and bad results but might be able to apply it to useful model
@@ -359,7 +377,6 @@ def kFold_CV(X, y, model, n_fold, _display=True):
 model = LinearRegression()
 results, model_list = kFold_CV(X, y, model, n_fold=5)"""
 
-
 # Time series train test split, only runs for one variable
 """X = cron['Net migration']
 splits = TimeSeriesSplit(n_splits=3)
@@ -408,6 +425,3 @@ plt.plot(results_AR.fittedvalues, color='red')
 plt.title('RSS: %.4f'% sum((results_AR.fittedvalues-df_mig)**2))
 plt.show()
 """
-
-
-

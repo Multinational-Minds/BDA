@@ -53,7 +53,7 @@ importances = feature_importances[:15]
 f.savefile(feature_importances, "rf_feature importances")
 
 fig = importances.plot(kind='barh', y='importance')
-lt.show()
+plt.show()
 
 rf_most_important = RandomForestRegressor(n_estimators=1000)
 important_indices = list(importances[:9].index)
