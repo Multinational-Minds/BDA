@@ -55,7 +55,6 @@ df_no_pt = df.loc[(df['Net migration'] < 1.5*IQR_nm) & (df['Population, total'] 
 periods = df.year.unique()
 
 # plot net immigration vs tas for every year
-
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -74,11 +73,9 @@ for c, num in zip(periods, range(1, 12)):
     ax1.set_title(c)
 
 plt.tight_layout()
-plt.show()
 fig.savefig("TempvsNetMigr_AllPeriods.png")
 
 # plot net immigration vs pr for every year
-
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -97,11 +94,9 @@ for c, num in zip(periods, range(1, 12)):
     ax2.set_title(c)
 
 fig.tight_layout()
-plt.show()
 fig.savefig("RainvsNetMigr_AllPeriods.png")
 
 # plot net immigration vs arable land for every year
-
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -120,11 +115,9 @@ for c, num in zip(periods, range(1, 12)):
     ax3.set_title(c)
 
 plt.tight_layout()
-plt.show()
 fig.savefig("ArLandvsNetMigr_AllPeriods.png")
 
 # plot net immigration vs population growth for every year
-
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -143,11 +136,9 @@ for c, num in zip(periods, range(1, 12)):
     ax4.set_title(c)
 
 plt.tight_layout()
-plt.show()
 fig.savefig("PopGrowthvsNetMigr_AllPeriods.png")
 
 # plot net immigration vs total population for every year
-
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -166,7 +157,6 @@ for c, num in zip(periods, range(1, 12)):
     ax5.set_title(c)
 
 plt.tight_layout()
-plt.show()
 fig.savefig("TotPopvsNetMigr_AllPeriods.png")
 
 df.head()
@@ -176,10 +166,10 @@ df.columns = ['Unnamed: 0', 'year', 'country', 'Net migration', 'temp', 'rain', 
 df.head(1)
 
 # correlation heatmap of all periods
-plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(10, 10))
 ax = sns.heatmap(df.drop(['Unnamed: 0'], axis=1).corr(), annot=True, cmap='coolwarm', square=True)
-plt.show()
 fig.savefig("CorrHeatmap_OverAllPeriods.png")
+
 
 # correlation heatmap for every period
 
@@ -201,7 +191,6 @@ for c, num in zip(periods, range(1, 12)):
 
 fig.tight_layout()
 fig.subplots_adjust(wspace=0.2, hspace=1)
-plt.show()
 fig.savefig("CorrHeatmap_ForEveryPeriod.png")
 
 # check normal distribution of Net migration for every year
@@ -210,10 +199,10 @@ df_NetMigr = df[['year', 'Net migration']]
 for period in periods:
     df_NetMigr_period = df_NetMigr[df_NetMigr['year'] == str(period)]
     print(df_NetMigr_period.describe())
-    plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
     sns.distplot(df_NetMigr_period['Net migration'], bins=100)
-    plt.show()
     fig.savefig("NormDistrNetMigr_"+str(period)+".png")
+
     stat, p = stats.shapiro(df_NetMigr_period['Net migration'].values)
     print('Statistics=%.3f, p=%.3f' % (stat, p))
     # interpret
@@ -227,9 +216,9 @@ for period in periods:
     df_period = df[df['year'] == str(period)]
 
     df_num_period = df_period.select_dtypes(include=['float64'])
-
-    df_num_period.hist(figsize=(20, 20), bins=100)
-    plt.show()
+    fig, ax = plt.subplots()
+    df_num_period.hist(figsize=(20, 20), bins=100, ax=ax)
+    plt.tight_layout()
     fig.savefig("HistAllVar_"+str(period)+".png")
 
     # highest correlations in descending order for every year
@@ -240,9 +229,8 @@ for period in periods:
 
     # all variables plotted against Net migration
     for i in range(1, len(df_num_period.columns), 5):
-        sns.pairplot(data=df_num_period, x_vars=df_num_period.columns[i:i + 5], y_vars=['Net migration'], height=8,
-                     aspect=0.7)
-        plt.show()
+        fig = sns.pairplot(data=df_num_period, x_vars=df_num_period.columns[i:i + 5], y_vars=['Net migration'], height=8,
+                    aspect=0.7)
         fig.savefig("AllVarvsNetMigr_"+str(period)+".png")
 
     # variables plotted against Net migration plus trend line
@@ -250,5 +238,4 @@ for period in periods:
     for i, ax in enumerate(fig.axes):
         if i < len(df_num_period.columns) - 1:
             sns.regplot(x=df_num_period.columns[i + 1], y='Net migration', data=df_num, ax=ax)
-    plt.show()
     fig.savefig("TrendAllVarvsNetMigr_"+str(period)+".png")
