@@ -34,7 +34,7 @@ for c, num in zip(periods, range(1, 12)):
     ax.plot(range(1, 15), Error)
 
 plt.tight_layout()
-plt.show()
+fig.savefig("ElbowMethod.png")
 
 # It appears that the optimal number of clusters for every period is around 3
 
@@ -51,26 +51,15 @@ for c in periods:
     print(y_kmeans3)
     print()
 
-    # K means Clustering
-    def doKmeans(X, nclust=3):
-        model = KMeans(nclust)
-        model.fit(X)
-        clust_labels = model.predict(X)
-        cent = model.cluster_centers_
-        return (clust_labels, cent)
-
-
-    clust_labels, cent = doKmeans(features, 3)
-    kmeans = pd.DataFrame(clust_labels)
-    df_year.insert((df_year.shape[1]), 'kmeans', kmeans)
-
     # Plot the clusters obtained using k means
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    scatter = ax.scatter(df_year['tas'], df_year['Net migration'],
-                         c=kmeans[0], s=50)
+    ax = fig.add_subplot()
+    scatter = ax.scatter(df_year['Population, total'], df_year['Net migration'],
+                         c=y_kmeans3, s=50)
     ax.set_title('K-Means Clustering ' + str(c))
-    ax.set_xlabel('Temperature')
+    ax.set_xlabel('Total population')
     ax.set_ylabel('Net migration')
     plt.colorbar(scatter)
-    plt.show()
+    fig.savefig("KMeansClustering " + str(c) + ".png")
+
+
