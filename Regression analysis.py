@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import matplotlib.gridspec as gridspec
 from dateutil.relativedelta import relativedelta
 from scipy.optimize import minimize
 
@@ -47,11 +47,8 @@ for decade in decades:
     data = df.loc[(df['year'] == decade)]
     dataframes.update({decade: data})
 
-# all data , remove column year and country
-df_num = df.drop(columns=['year', 'country'])
-
 # time series data, without countries
-df_time = df.drop(columns=['country'])
+
 AFG = df.loc[(df['country'] == 'AFG')].sort_values(
     by='year')
 cron = df.sort_values(by='year')
@@ -60,7 +57,7 @@ df['year'] = df['year'].apply(lambda x: str(x))
 
 '''We now needto check if there is any autocorrelation (due to this being a time series) left in our data 
 if so we will need to use alternative regression methods in order to account for this'''
-
+'''
 # VAR TESTING START - Vector Auto regression
 # https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
 # Plot 1 line per country
@@ -194,7 +191,7 @@ df_results = invert_transformation(df_train, df_forecast)
 fig, axes = plt.subplots(nrows=int(len(data.columns) / 2), ncols=2, dpi=150, figsize=(10, 10))
 for i, (col, ax) in enumerate(zip(data.columns, axes.flatten())):
     df_results[col + '_forecast'].plot(legend=True, ax=ax).autoscale(axis='x', tight=True)
-    df_test[col][-nobs:].plot(legend=True, ax=ax);
+    df_test[col][-nobs:].plot(legend=True, ax=ax)
     ax.set_title(col + ": Forecast vs Actuals")
     ax.xaxis.set_ticks_position('none')
     ax.yaxis.set_ticks_position('none')
@@ -205,20 +202,19 @@ plt.tight_layout()
 plt.show()
 
 # END OF VAR TESTING
+'''
 
-
-# corr matrix and regression analysis for 1960, can loop to make for other years? otherwise manual
-df60 = dataframes[1960]
-corrmat_partial = df60.drop(columns=['country', 'year']).corr()
+# corr matrix and regression analysis
+df_linreg = df
+corrmat_partial = df_linreg.drop(columns=['country', 'year']).corr()
 
 corrmat_partial *= np.where(np.tri(*corrmat_partial.shape, k=-1) == 0, np.nan,
                             1)  # puts NaN on upper triangular matrix, including diagonal (k=-1)
-corrmat = pd.get_dummies(df60).drop(columns=['year']).corr()
+corrmat = pd.get_dummies(df_linreg).corr()
 corrmat_list = corrmat.unstack().to_frame()
 corrmat_list.columns = ['correlation']
 corrmat_list['abs_corr'] = corrmat_list.correlation.abs()
 corrmat_list.sort_values(by=['abs_corr'], ascending=False, na_position='last', inplace=True)
-# corrmat_list.drop(columns=['abs_corr']).head(10)
 
 sns.heatmap(corrmat_partial, cmap="YlGnBu", linewidths=0.1)
 plt.show()
@@ -227,10 +223,10 @@ plt.show()
 # variable distribution and relation to net migration
 # all for 1960, can be changed (looped) for other years
 
-X = pd.get_dummies(df60.drop(columns=['Net migration', 'year']))
-y = df60['Net migration'].values
+X = pd.get_dummies(df_linreg.drop(columns=['Net migration']))
+y = df_linreg['Net migration']
 
-import matplotlib.gridspec as gridspec
+
 
 fig = plt.figure(figsize=(10, 20), constrained_layout=True)
 spec = gridspec.GridSpec(nrows=X.shape[1], ncols=2, figure=fig)
@@ -271,8 +267,8 @@ print(pd.DataFrame({'Variable': ['intercept'] + list(X.columns), 'Coefficient': 
 y_train_predicted = model.predict(X_train)
 
 # compare predictions
-print(pd.DataFrame({'True': y_train.flatten(), 'Predicted': y_train_predicted.flatten()}))
-
+print(pd.DataFrame({'True': y_train.ravel(), 'Predicted': y_train_predicted.ravel()}))
+'''
 # plot marginal models
 fig, ax = plt.subplots(math.ceil(X_train.shape[1] / 3), 3, figsize=(20, 10), constrained_layout=True)
 ax = ax.flatten()
@@ -290,35 +286,39 @@ for i, var in enumerate(X_train.columns):
                     str(round(corrmat_list.loc[(var, 'Net migration'), 'correlation'] * 100)) + '%', fontsize=15)
     ax[i].set_xlabel(var)
     ax[i].set_ylabel('Net migration')
-plt.show()
+plt.show()'''
 
 
 # boxplot showing variability for each variable for 1960/65 and is standardized.
 # Again, we can make a loop to run this for dif time periods
-def box_plot(df60, standardize=True):
+def box_plot(dataframe, standardize=True):
     fig = plt.figure(figsize=(20, 10))
 
     if standardize == True:
         # standardize columns for better visualization
-        df60 = pd.DataFrame(preprocessing.StandardScaler().fit_transform(df60.values), columns=df60.columns)
+        idx = dataframe.applymap(lambda x: isinstance(x, str)).all(0)
+        dataframe_num = dataframe[dataframe.columns[~idx]]
+        dataframe = pd.DataFrame(preprocessing.StandardScaler().fit_transform(dataframe_num.values),
+                                 columns=dataframe_num.columns)
+
     fig = sns.boxplot(x='value', y='variable',
-                      data=pd.melt(df60.reset_index(), id_vars='index', value_vars=list(df60.columns)),
+                      data=pd.melt(dataframe.reset_index(), id_vars='index', value_vars=list(dataframe.columns)),
                       orient='h')
     fig.tick_params(labelsize=20)
     fig.set_xlabel('')
     fig.set_ylabel('')
     if standardize == True:
         fig.set_title('Standardized Variable Distribution\nfor better visualization', fontsize=40)
-    df60 = pd.plotting.register_matplotlib_converters()
+    dataframe = pd.plotting.register_matplotlib_converters()
     plt.show()
 
 
-Q1 = df60.quantile(0.2)
-Q3 = df60.quantile(0.8)
+Q1 = df_linreg.quantile(0.2)
+Q3 = df_linreg.quantile(0.8)
 IQR = Q3 - Q1
 
-dataset_outlier = df60[~((df60 < (Q1 - IQR)) | (df60 > (Q3 + IQR))).any(axis=1)]
-print('\nData size reduced from {} to {}\n'.format(df60.shape[0], dataset_outlier.shape[0]))
+dataset_outlier = df_linreg[~((df_linreg < (Q1 - IQR)) | (df_linreg > (Q3 + IQR))).any(axis=1)]
+print('\nData size reduced from {} to {}\n'.format(df_linreg.shape[0], dataset_outlier.shape[0]))
 box_plot(dataset_outlier)
 
 # simple scatter plot comparing migration and tas 1960/65
@@ -335,8 +335,7 @@ plt.show()"""
 # K-fold Cross-Validation
 # Runs but does not account for time series, uses all data for kfold test/split so is not accurate :(
 # useless and bad results but might be able to apply it to useful model
-X = cron.drop(columns=['year', 'country', 'Net migration'])
-y = cron['Net migration'].to_frame()
+
 
 
 def kFold_CV(X, y, model, n_fold, _display=True):
@@ -344,10 +343,10 @@ def kFold_CV(X, y, model, n_fold, _display=True):
     folds = KFold(n_splits=n_fold, random_state=0, shuffle=True)
 
     # fit model on each k-1 fold and evaluate performances (errors)
-    results = pd.DataFrame(columns=['Split', 'Train size', 'Test size', 'Train R^2', 'Train RMSE', 'Test RMSE'],
-                           dtype=float).fillna(0)
+    columns = ['Split', 'Train size', 'Test size', 'Train R^2', 'Train RMSE', 'Test RMSE']
+    results = pd.DataFrame()
 
-    fig = plt.figure(figsize=(10, 1.5 * n_fold))
+
     plot_count = 1
     split_count = 1
     model_list = {}
@@ -355,15 +354,10 @@ def kFold_CV(X, y, model, n_fold, _display=True):
         # define train and test (validation) set
         X_split_train = X.iloc[train_index, :]
         X_split_test = X.iloc[test_index, :]
-        y_split_train = y.iloc[train_index, :]
-        y_split_test = y.iloc[test_index, :]
+        y_split_train = y.iloc[train_index]
+        y_split_test = y.iloc[test_index]
 
-        # plot target variable distribution comparison between split_train and split_test set
-        ax = fig.add_subplot(math.ceil(n_fold / 3), 3, plot_count)
-        sns.distplot(y_split_train, label='train', ax=ax)
-        sns.distplot(y_split_test, label='test', ax=ax)
-        ax.set_title('Target variable distribution\nsplit ' + str(split_count), fontsize=12)
-        ax.legend(fontsize=8)
+
 
         # fit model on train set and get performances on train set
         model_fit = model.fit(X_split_train, y_split_train.values.ravel())
@@ -377,9 +371,10 @@ def kFold_CV(X, y, model, n_fold, _display=True):
         RMSE_test = np.sqrt(metrics.mean_squared_error(y_split_test, y_test_predicted))
 
         # append results
-        results = results.append(pd.DataFrame([[split_count, X_split_train.shape[0], X_split_test.shape[0], R2_train,
-                                                RMSE_train, RMSE_test]],
-                                              columns=results.columns))
+        to_append = pd.DataFrame([[split_count, X_split_train.shape[0], X_split_test.shape[0], R2_train,
+                                   RMSE_train, RMSE_test]],
+                                 columns=columns)
+        results = results.append(to_append)
         split_count += 1
         plot_count += 1
 
@@ -388,35 +383,29 @@ def kFold_CV(X, y, model, n_fold, _display=True):
     results['Test size'] = results['Test size'].astype(int)
 
     if _display == True:
-        plt.tight_layout()
-        fig.subplots_adjust(top=0.88)
-        plt.show()
-        print(results)
-    else:
-        plt.close()
+        print(results.reset_index(drop=True))
 
-    return results, model_list
+    return results.reset_index(drop=True), model_list
 
 
 model = LinearRegression()
-results, model_list = kFold_CV(X, y, model, n_fold=10)
+cv_results, model_list = kFold_CV(X, y, model, n_fold=100, _display=False)
+best_split = cv_results.iloc[cv_results['Test RMSE'].idxmin]
+key = 'split_' + str(int(best_split['Split']))
+best_model = model_list[key]
+print(key, ' ', best_split)
 
-# Time series train test split, only runs for one variable
-"""X = cron['Net migration']
-splits = TimeSeriesSplit(n_splits=3)
-plt.figure(1)
-index = 1
-for train_index, test_index in splits.split(X):
-	train = X[train_index]
-	test = X[test_index]
-	print('Observations: %d' % (len(train) + len(test)))
-	print('Training Observations: %d' % (len(train)))
-	print('Testing Observations: %d' % (len(test)))
-	plt.subplot(310 + index)
-	plt.plot(train)
-	plt.plot([None for i in train] + [x for x in test])
-	index += 1
-plt.show()"""
+
+# Time series nested CV
+# https://towardsdatascience.com/time-series-nested-cross-validation-76adba623eb9
+
+def nested_cv(X, y, model, date_column, _display=False):
+    periods = X[date_column].unique()
+    for count in range(1, len(periods) - 2):
+        X_train = X[date_column == periods[count]]
+        X_validate = X[date_column == periods[count + 1]]
+        X_predict = X[date_column == periods[count + 2]]
+
 
 # ARIMA regression model - cant make this one work
 """
