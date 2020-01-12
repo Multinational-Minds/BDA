@@ -226,8 +226,6 @@ plt.show()
 X = pd.get_dummies(df_linreg.drop(columns=['Net migration']))
 y = df_linreg['Net migration']
 
-
-
 fig = plt.figure(figsize=(10, 20), constrained_layout=True)
 spec = gridspec.GridSpec(nrows=X.shape[1], ncols=2, figure=fig)
 '''
@@ -332,10 +330,10 @@ plt.xlabel('Net migration')
 plt.ylabel('tas')
 plt.show()"""
 
+
 # K-fold Cross-Validation
 # Runs but does not account for time series, uses all data for kfold test/split so is not accurate :(
 # useless and bad results but might be able to apply it to useful model
-
 
 
 def kFold_CV(X, y, model, n_fold, _display=True):
@@ -346,7 +344,6 @@ def kFold_CV(X, y, model, n_fold, _display=True):
     columns = ['Split', 'Train size', 'Test size', 'Train R^2', 'Train RMSE', 'Test RMSE']
     results = pd.DataFrame()
 
-
     plot_count = 1
     split_count = 1
     model_list = {}
@@ -356,8 +353,6 @@ def kFold_CV(X, y, model, n_fold, _display=True):
         X_split_test = X.iloc[test_index, :]
         y_split_train = y.iloc[train_index]
         y_split_test = y.iloc[test_index]
-
-
 
         # fit model on train set and get performances on train set
         model_fit = model.fit(X_split_train, y_split_train.values.ravel())
@@ -381,31 +376,65 @@ def kFold_CV(X, y, model, n_fold, _display=True):
     results['Split'] = results['Split'].astype(int)
     results['Train size'] = results['Train size'].astype(int)
     results['Test size'] = results['Test size'].astype(int)
+    results = results.reset_index(drop=True)
+    mean = results[['Train R^2', 'Train RMSE', 'Test RMSE']].mean()
+    mean = mean.append(results[['Split', 'Train size', 'Test size']].iloc[-1])
 
     if _display == True:
-        print(results.reset_index(drop=True))
+        print(mean)
 
-    return results.reset_index(drop=True), model_list
+    return mean, model_list
 
 
 model = LinearRegression()
-cv_results, model_list = kFold_CV(X, y, model, n_fold=100, _display=False)
-best_split = cv_results.iloc[cv_results['Test RMSE'].idxmin]
-key = 'split_' + str(int(best_split['Split']))
-best_model = model_list[key]
-print(key, ' ', best_split)
+cv_results = kFold_CV(X, y, model, n_fold=20, _display=False)
+
+print(cv_results)
 
 
-# Time series nested CV
+# Time series nested CV using day forward chaining
 # https://towardsdatascience.com/time-series-nested-cross-validation-76adba623eb9
 
-def nested_cv(X, y, model, date_column, _display=False):
+def time_series_cv(X, y, model, date_column, _display=True):
     periods = X[date_column].unique()
-    for count in range(1, len(periods) - 2):
-        X_train = X[date_column == periods[count]]
-        X_validate = X[date_column == periods[count + 1]]
-        X_predict = X[date_column == periods[count + 2]]
+    columns = pd.get_dummies(X.drop(columns=[date_column])).columns
+    performance = list()
+    R2_list = list()
+    # making train, validate and prediction sets based on subsequent time differences
+    for count in range(1, len(periods) - 1):
+        X_train = pd.get_dummies(X.loc[X[date_column] <= periods[count - 1]].drop(columns=[date_column])).reindex(
+            columns=columns, fill_value=0)
+        X_test = pd.get_dummies(X.loc[X[date_column] == periods[count]].drop(columns=[date_column])).reindex(
+            columns=columns, fill_value=0)
+        y_train = y.iloc[X_train.index]
+        y_test = y.iloc[X_test.index]
 
+        # fit model on train set and measure performance
+        model.fit(X_train, y_train.values.ravel())
+        y_train_predicted = model.predict(X_train)
+        R2_train = metrics.r2_score(y_train, y_train_predicted)
+
+        # get performance on test set
+        y_test_predicted = model.predict(X_test)
+        RMSE_test = np.sqrt(metrics.mean_squared_error(y_test, y_test_predicted))
+
+        # store values to determine performance later
+        performance.append(RMSE_test)
+        R2_list.append(R2_train)
+    # take mean of all the RMSE to obtain almost unbiased test RMSE
+    RMSE = sum(performance) / len(performance)
+    R2 = sum(R2_list) / len(R2_list)
+    result = pd.Series({'Train R^2': R2, 'RMSE model': RMSE})
+
+    if _display:
+        print(result)
+    return result
+
+
+X = df_linreg.drop(columns=['Net migration'])
+y = df_linreg['Net migration']
+
+time_series_cv(X, y, model, date_column='year')
 
 # ARIMA regression model - cant make this one work
 """
