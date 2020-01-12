@@ -37,7 +37,6 @@ from statsmodels.tools.eval_measures import rmse, aic
 
 df = f.openfile('data.h5')
 
-
 '''I thought a dict with all the data per decade would be more useful for you so I went ahead and created that for you'''
 
 df['year'] = df['year'].apply(lambda x: int(x.year))
@@ -56,11 +55,11 @@ df_time = df.drop(columns=['country'])
 AFG = df.loc[(df['country'] == 'AFG')].sort_values(
     by='year')
 cron = df.sort_values(by='year')
+cron['year'] = cron['year'].apply(lambda x: str(x))
+df['year'] = df['year'].apply(lambda x: str(x))
 
 '''We now needto check if there is any autocorrelation (due to this being a time series) left in our data 
 if so we will need to use alternative regression methods in order to account for this'''
-
-
 
 # VAR TESTING START - Vector Auto regression
 # https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
@@ -83,11 +82,12 @@ plt.tight_layout()
 # make country specific by opening line #58, and changing nobe line#85 to 2
 # again, issue is it looks at everything, not on a country by country basis
 nobs = 188
-data = pd.get_dummies(cron)
+data = cron[cron.country != 'SRB']
+data = pd.get_dummies(data.drop(columns=['year']))
 df_train, df_test = data[0:-nobs], data[-nobs:]
 
 
-def adfuller_test(series, signif=0.05, name='', verbose=False):
+def adfuller_test(series, signif=0.05, name='', verbose=False, print=True):
     """Perform ADFuller to test for Stationarity of given series and print report"""
     r = adfuller(series, autolag='AIC')
     output = {'test_statistic': round(r[0], 4), 'pvalue': round(r[1], 4), 'n_lags': round(r[2], 4), 'n_obs': r[3]}
@@ -96,58 +96,72 @@ def adfuller_test(series, signif=0.05, name='', verbose=False):
     def adjust(val, length=6):
         return str(val).ljust(length)
 
-    # Print Summary
-    print(f'    Augmented Dickey-Fuller Test on "{name}"', "\n   ", '-' * 47)
-    print(f' Null Hypothesis: Data has unit root. Non-Stationary.')
-    print(f' Significance Level    = {signif}')
-    print(f' Test Statistic        = {output["test_statistic"]}')
-    print(f' No. Lags Chosen       = {output["n_lags"]}')
+    if print:
+        # Print Summary
+        print(f'    Augmented Dickey-Fuller Test on "{name}"', "\n   ", '-' * 47)
+        print(f' Null Hypothesis: Data has unit root. Non-Stationary.')
+        print(f' Significance Level    = {signif}')
+        print(f' Test Statistic        = {output["test_statistic"]}')
+        print(f' No. Lags Chosen       = {output["n_lags"]}')
 
-    for key, val in r[4].items():
-        print(f' Critical value {adjust(key)} = {round(val, 3)}')
+        for key, val in r[4].items():
+            print(f' Critical value {adjust(key)} = {round(val, 3)}')
 
-    if p_value <= signif:
-        print(f" => P-Value = {p_value}. Rejecting Null Hypothesis.")
-        print(f" => Series is Stationary.")
-        return 'stat'
+        if p_value <= signif:
+            print(f" => P-Value = {p_value}. Rejecting Null Hypothesis.")
+            print(f" => Series is Stationary.")
+            return ('stat', p_value)
+        else:
+            print(f" => P-Value = {p_value}. Weak evidence to reject the Null Hypothesis.")
+            print(f" => Series is Non-Stationary.")
+            print('\n')
+            return ('non-stat', p_value)
     else:
-        print(f" => P-Value = {p_value}. Weak evidence to reject the Null Hypothesis.")
-        print(f" => Series is Non-Stationary.")
-        return 'non-stat'
+        if p_value <= signif:
+            return 'stat'
+        else:
+            return 'non-stat', output['test_statistic']
 
 
 # runs adfuller test for each variable (all data), returns all data stationary
 # if its ran for each country individually, data is non-stationary...
 
+checkup = list()
+non_stationaries = list()
+diff = 0
 
-df_differenced = df_train.diff().dropna()
-stationaries = list()
-for name, column in df_differenced.iteritems():
-    res = adfuller_test(column, name=name)
-    stationaries.append(res)
-    print('\n')
-count = 0
-while stationaries.count('non-stat') >= 1:
-    count = count + 1
+for name, column in df_train.iteritems():
+    res = adfuller_test(column, name=name, print=False)
+    if res[0] == 'non-stat':
+        non_stationaries.append({(name + str(diff)): res[1]})
+
+df_differenced = df_train
+
+while len(non_stationaries) > 0:
+    checkup.append(non_stationaries)
+    non_stationaries = list()
+    diff = diff + 1
     df_differenced = df_differenced.diff().dropna()
-    stationaries = list()
     for name, column in df_differenced.iteritems():
-        res = adfuller_test(column, name=name)
-        stationaries.append(res)
-        print('\n')
+        res = adfuller_test(column, name=name, print=False)
+        if res[0] == 'non-stat':
+            non_stationaries.append({(name + str(diff)): res[1]})
 
-print('order of differences: ', count)
+print('final order of differences: ', diff)
 
 model = VAR(df_train)
-for i in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
-    result = model.fit(i)
-    print('Lag Order =', i)
-    print('AIC : ', result.aic)
-    print('BIC : ', result.bic)
-    print('FPE : ', result.fpe)
-    print('HQIC: ', result.hqic, '\n')
+try:
+    for i in range(1, 9):
+        result = model.fit(i)
+        print('Lag Order =', i)
+        print('AIC : ', result.aic)
+        print('BIC : ', result.bic)
+        print('FPE : ', result.fpe)
+        print('HQIC: ', result.hqic, '\n')
+except OverflowError:
+    print('FPE too large, did not want to mess with code in package')
 
-model_fitted = model.fit(1)
+model_fitted = model.fit(4)
 # print(model_fitted.summary())
 
 # Get the lag order
@@ -158,8 +172,7 @@ print(lag_order)  # > 1
 forecast_input = df_train.values[-lag_order:]
 
 fc = model_fitted.forecast(y=forecast_input, steps=nobs)
-df_forecast = pd.DataFrame(fc, index=df.index[-nobs:], columns=df.columns + '_2d')
-
+df_forecast = pd.DataFrame(fc, index=data.index[-nobs:], columns=data.columns + '_1d')
 
 
 def invert_transformation(df_train, df_forecast, second_diff=False):
@@ -176,10 +189,10 @@ def invert_transformation(df_train, df_forecast, second_diff=False):
     return df_fc
 
 
-df_results = invert_transformation(df_train, df_forecast, second_diff=True)
+df_results = invert_transformation(df_train, df_forecast)
 
-fig, axes = plt.subplots(nrows=int(len(df.columns) / 2), ncols=2, dpi=150, figsize=(10, 10))
-for i, (col, ax) in enumerate(zip(df.columns, axes.flatten())):
+fig, axes = plt.subplots(nrows=int(len(data.columns) / 2), ncols=2, dpi=150, figsize=(10, 10))
+for i, (col, ax) in enumerate(zip(data.columns, axes.flatten())):
     df_results[col + '_forecast'].plot(legend=True, ax=ax).autoscale(axis='x', tight=True)
     df_test[col][-nobs:].plot(legend=True, ax=ax);
     ax.set_title(col + ": Forecast vs Actuals")
@@ -189,6 +202,7 @@ for i, (col, ax) in enumerate(zip(df.columns, axes.flatten())):
     ax.tick_params(labelsize=6)
 
 plt.tight_layout()
+plt.show()
 
 # END OF VAR TESTING
 
@@ -200,9 +214,9 @@ corrmat_partial = df60.drop(columns=['country', 'year']).corr()
 corrmat_partial *= np.where(np.tri(*corrmat_partial.shape, k=-1) == 0, np.nan,
                             1)  # puts NaN on upper triangular matrix, including diagonal (k=-1)
 corrmat = pd.get_dummies(df60).drop(columns=['year']).corr()
-corrmat_list=corrmat.unstack().to_frame()
-corrmat_list.columns=['correlation']
-corrmat_list['abs_corr']=corrmat_list.correlation.abs()
+corrmat_list = corrmat.unstack().to_frame()
+corrmat_list.columns = ['correlation']
+corrmat_list['abs_corr'] = corrmat_list.correlation.abs()
 corrmat_list.sort_values(by=['abs_corr'], ascending=False, na_position='last', inplace=True)
 # corrmat_list.drop(columns=['abs_corr']).head(10)
 
@@ -218,8 +232,8 @@ y = df60['Net migration'].values
 
 import matplotlib.gridspec as gridspec
 
-fig = plt.figure(figsize=(10,20), constrained_layout=True)
-spec = gridspec.GridSpec(nrows=X.shape[1],ncols=2, figure=fig)
+fig = plt.figure(figsize=(10, 20), constrained_layout=True)
+spec = gridspec.GridSpec(nrows=X.shape[1], ncols=2, figure=fig)
 '''
 for var_index, var in enumerate(X.columns):
     ax_left = fig.add_subplot(spec[var_index, 0])
@@ -235,7 +249,7 @@ plt.show()
 '''
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, shuffle=False)
 
-plt.figure(figsize=(10,6))
+plt.figure(figsize=(10, 6))
 sns.distplot(y_train, label='train')
 sns.distplot(y_test, label='test')
 plt.title('Target variable distribution', fontsize=20)
@@ -248,7 +262,10 @@ model.fit(X_train, y_train)
 # get coefficients
 print('Intercept:', model.intercept_)
 print('Slope:', model.coef_)
-print(pd.DataFrame({'Variable': ['intercept'] + list(X.columns), 'Coefficient': ["{0:.5f}".format(v) for v in np.append(model.intercept_, model.coef_.flatten()).round(6)]}))
+print(pd.DataFrame({'Variable': ['intercept'] + list(X.columns), 'Coefficient': ["{0:.5f}".format(v) for v in
+                                                                                 np.append(model.intercept_,
+                                                                                           model.coef_.flatten()).round(
+                                                                                     6)]}))
 
 # get fitted value on training set
 y_train_predicted = model.predict(X_train)
@@ -256,25 +273,25 @@ y_train_predicted = model.predict(X_train)
 # compare predictions
 print(pd.DataFrame({'True': y_train.flatten(), 'Predicted': y_train_predicted.flatten()}))
 
-
 # plot marginal models
-fig, ax = plt.subplots(math.ceil(X_train.shape[1] / 3), 3, figsize=(20,10), constrained_layout=True)
-ax=ax.flatten()
+fig, ax = plt.subplots(math.ceil(X_train.shape[1] / 3), 3, figsize=(20, 10), constrained_layout=True)
+ax = ax.flatten()
 
 for i, var in enumerate(X_train.columns):
-    ax[i].scatter(X_train[var], y_train,  color='gray')
-    X_train_univariate=pd.DataFrame(np.zeros(X_train.shape), columns=X_train.columns, index=X_train.index)
-    X_train_univariate[var]=X_train[var]
-    y_train_predicted_univariate=model.predict(X_train_univariate)
-    ax[i].plot(X_train[var], y_train_predicted_univariate + (y_train.mean()-y_train_predicted_univariate.mean()),
+    ax[i].scatter(X_train[var], y_train, color='gray')
+    X_train_univariate = pd.DataFrame(np.zeros(X_train.shape), columns=X_train.columns, index=X_train.index)
+    X_train_univariate[var] = X_train[var]
+    y_train_predicted_univariate = model.predict(X_train_univariate)
+    ax[i].plot(X_train[var], y_train_predicted_univariate + (y_train.mean() - y_train_predicted_univariate.mean()),
                color='red', linewidth=2)
     # y_train.mean()-y_train_predicted_univariate.mean() has been added only to center the line on the points
     # what matters is the slope of the line as the intercept term cannot be "shared" among all univariate variables
-    ax[i].set_title('Net migration vs ' + var + ' - corr: ' +\
-                       str(round(corrmat_list.loc[(var, 'Net migration'),'correlation']*100)) + '%', fontsize=15)
+    ax[i].set_title('Net migration vs ' + var + ' - corr: ' + \
+                    str(round(corrmat_list.loc[(var, 'Net migration'), 'correlation'] * 100)) + '%', fontsize=15)
     ax[i].set_xlabel(var)
     ax[i].set_ylabel('Net migration')
 plt.show()
+
 
 # boxplot showing variability for each variable for 1960/65 and is standardized.
 # Again, we can make a loop to run this for dif time periods
@@ -295,11 +312,12 @@ def box_plot(df60, standardize=True):
     df60 = pd.plotting.register_matplotlib_converters()
     plt.show()
 
+
 Q1 = df60.quantile(0.2)
 Q3 = df60.quantile(0.8)
 IQR = Q3 - Q1
 
-dataset_outlier = df60[~((df60 < (Q1 - IQR)) |(df60 > (Q3 + IQR))).any(axis=1)]
+dataset_outlier = df60[~((df60 < (Q1 - IQR)) | (df60 > (Q3 + IQR))).any(axis=1)]
 print('\nData size reduced from {} to {}\n'.format(df60.shape[0], dataset_outlier.shape[0]))
 box_plot(dataset_outlier)
 
@@ -319,7 +337,6 @@ plt.show()"""
 # useless and bad results but might be able to apply it to useful model
 X = cron.drop(columns=['year', 'country', 'Net migration'])
 y = cron['Net migration'].to_frame()
-
 
 
 def kFold_CV(X, y, model, n_fold, _display=True):
