@@ -35,53 +35,41 @@ from statsmodels.tsa.api import VAR
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tools.eval_measures import rmse, aic
 
-df = f.openfile('data.h5')
 
-'''I thought a dict with all the data per decade would be more useful for you so I went ahead and created that for you'''
+def time_series_cv(X, y, model, date_column, _display=True):
+    periods = X[date_column].unique()
+    columns = pd.get_dummies(X.drop(columns=[date_column])).columns
+    performance = list()
+    R2_list = list()
+    # making train, validate and prediction sets based on subsequent time differences
+    for count in range(1, len(periods) - 1):
+        X_train = pd.get_dummies(X.loc[X[date_column] <= periods[count - 1]].drop(columns=[date_column])).reindex(
+            columns=columns, fill_value=0)
+        X_test = pd.get_dummies(X.loc[X[date_column] == periods[count]].drop(columns=[date_column])).reindex(
+            columns=columns, fill_value=0)
+        y_train = y.iloc[X_train.index]
+        y_test = y.iloc[X_test.index]
 
-df['year'] = df['year'].apply(lambda x: int(x.year))
+        # fit model on train set and measure performance
+        model.fit(X_train, y_train.values.ravel())
+        y_train_predicted = model.predict(X_train)
+        R2_train = metrics.r2_score(y_train, y_train_predicted)
 
-decades = df['year'].unique()
-dataframes = {}
-for decade in decades:
-    data = df.loc[(df['year'] == decade)]
-    dataframes.update({decade: data})
+        # get performance on test set
+        y_test_predicted = model.predict(X_test)
+        RMSE_test = np.sqrt(metrics.mean_squared_error(y_test, y_test_predicted))
 
-# time series data, without countries
+        # store values to determine performance later
+        performance.append(RMSE_test)
+        R2_list.append(R2_train)
+    # take mean of all the RMSE to obtain almost unbiased test RMSE
+    RMSE = sum(performance) / len(performance)
+    R2 = sum(R2_list) / len(R2_list)
+    result = pd.Series({'Train R^2': R2, 'RMSE model': RMSE})
 
-AFG = df.loc[(df['country'] == 'AFG')].sort_values(
-    by='year')
-cron = df.sort_values(by='year')
-cron['year'] = cron['year'].apply(lambda x: str(x))
-df['year'] = df['year'].apply(lambda x: str(x))
-
-'''We now needto check if there is any autocorrelation (due to this being a time series) left in our data 
-if so we will need to use alternative regression methods in order to account for this'''
-'''
-# VAR TESTING START - Vector Auto regression
-# https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
-# Plot 1 line per country
-
-fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10, 6))
-for i, ax in enumerate(axes.flatten()):
-    data = df[df.columns[i]]
-    ax.plot(data, color='red', linewidth=1)
-    # Decorations
-    ax.set_title(df.columns[i])
-    ax.xaxis.set_ticks_position('none')
-    ax.yaxis.set_ticks_position('none')
-    ax.spines["top"].set_alpha(0)
-    ax.tick_params(labelsize=6)
-
-plt.tight_layout()
-
-# splits  data for train and test (all data)
-# make country specific by opening line #58, and changing nobe line#85 to 2
-# again, issue is it looks at everything, not on a country by country basis
-nobs = 188
-data = cron[cron.country != 'SRB']
-data = pd.get_dummies(data.drop(columns=['year']))
-df_train, df_test = data[0:-nobs], data[-nobs:]
+    if _display:
+        print(result)
+    return result
 
 
 def adfuller_test(series, signif=0.05, name='', verbose=False, print=True):
@@ -120,8 +108,144 @@ def adfuller_test(series, signif=0.05, name='', verbose=False, print=True):
             return 'non-stat', output['test_statistic']
 
 
+def box_plot(dataframe, standardize=True):
+    fig = plt.figure(figsize=(20, 10))
+
+    if standardize == True:
+        # standardize columns for better visualization
+        idx = dataframe.applymap(lambda x: isinstance(x, str)).all(0)
+        dataframe_num = dataframe[dataframe.columns[~idx]]
+        dataframe = pd.DataFrame(preprocessing.StandardScaler().fit_transform(dataframe_num.values),
+                                 columns=dataframe_num.columns)
+
+    fig = sns.boxplot(x='value', y='variable',
+                      data=pd.melt(dataframe.reset_index(), id_vars='index', value_vars=list(dataframe.columns)),
+                      orient='h')
+    fig.tick_params(labelsize=20)
+    fig.set_xlabel('')
+    fig.set_ylabel('')
+    if standardize == True:
+        fig.set_title('Standardized Variable Distribution\nfor better visualization', fontsize=40)
+    dataframe = pd.plotting.register_matplotlib_converters()
+    plt.show()
+
+
+def kFold_CV(X, y, model, n_fold, _display=True):
+    # generate folds
+    folds = KFold(n_splits=n_fold, random_state=0, shuffle=True)
+
+    # fit model on each k-1 fold and evaluate performances (errors)
+    columns = ['Split', 'Train size', 'Test size', 'Train R^2', 'Train RMSE', 'Test RMSE']
+    results = pd.DataFrame()
+
+    plot_count = 1
+    split_count = 1
+    model_list = {}
+    for train_index, test_index in folds.split(X, y):
+        # define train and test (validation) set
+        X_split_train = X.iloc[train_index, :]
+        X_split_test = X.iloc[test_index, :]
+        y_split_train = y.iloc[train_index]
+        y_split_test = y.iloc[test_index]
+
+        # fit model on train set and get performances on train set
+        model_fit = model.fit(X_split_train, y_split_train.values.ravel())
+        y_train_predicted = model.predict(X_split_train)
+        R2_train = metrics.r2_score(y_split_train, y_train_predicted)
+        RMSE_train = np.sqrt(metrics.mean_squared_error(y_split_train, y_train_predicted))
+        model_list['split_' + str(split_count)] = model_fit
+
+        # get performance on test set
+        y_test_predicted = model.predict(X_split_test)
+        RMSE_test = np.sqrt(metrics.mean_squared_error(y_split_test, y_test_predicted))
+
+        # append results
+        to_append = pd.DataFrame([[split_count, X_split_train.shape[0], X_split_test.shape[0], R2_train,
+                                   RMSE_train, RMSE_test]],
+                                 columns=columns)
+        results = results.append(to_append)
+        split_count += 1
+        plot_count += 1
+
+    results['Split'] = results['Split'].astype(int)
+    results['Train size'] = results['Train size'].astype(int)
+    results['Test size'] = results['Test size'].astype(int)
+    results = results.reset_index(drop=True)
+    mean = results[['Train R^2', 'Train RMSE', 'Test RMSE']].mean()
+    mean = mean.append(results[['Split', 'Train size', 'Test size']].iloc[-1])
+
+    if _display == True:
+        print(mean)
+
+    return mean, model_list
+
+
+def invert_transformation(df_train, df_forecast, second_diff=False):
+    """Revert back the differencing to get the forecast to original scale."""
+    df_fc = df_forecast.copy()
+    columns = df_train.columns
+    for col in columns:
+        # Roll back 2nd Diff
+        if second_diff:
+            df_fc[str(col) + '_1d'] = (df_train[col].iloc[-1] - df_train[col].iloc[-2]) + df_fc[
+                str(col) + '_2d'].cumsum()
+        # Roll back 1st Diff
+        df_fc[str(col) + '_forecast'] = df_train[col].iloc[-1] + df_fc[str(col) + '_1d'].cumsum()
+    return df_fc
+
+df = f.openfile('data.h5')
+
+'''I thought a dict with all the data per decade would be more useful for you so I went ahead and created that for you'''
+
+df['year'] = df['year'].apply(lambda x: int(x.year))
+
+decades = df['year'].unique()
+dataframes = {}
+for decade in decades:
+    data = df.loc[(df['year'] == decade)]
+    dataframes.update({decade: data})
+
+# time series data, without countries
+
+AFG = df.loc[(df['country'] == 'AFG')].sort_values(
+    by='year')
+cron = df.sort_values(by='year')
+cron['year'] = cron['year'].apply(lambda x: str(x))
+df['year'] = df['year'].apply(lambda x: str(x))
+
+'''We now needto check if there is any autocorrelation (due to this being a time series) left in our data 
+if so we will need to use alternative regression methods in order to account for this'''
+
+# VAR TESTING START - Vector Auto regression
+# https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
+# Plot 1 line per country
+
+fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10, 6))
+for i, ax in enumerate(axes.flatten()):
+    data = df[df.columns[i]]
+    ax.plot(data, color='red', linewidth=1)
+    # Decorations
+    ax.set_title(df.columns[i])
+    ax.xaxis.set_ticks_position('none')
+    ax.yaxis.set_ticks_position('none')
+    ax.spines["top"].set_alpha(0)
+    ax.tick_params(labelsize=6)
+
+plt.tight_layout()
+
+# splits  data for train and test (all data)
+# make country specific by opening line #58, and changing nobe line#85 to 2
+# again, issue is it looks at everything, not on a country by country basis
+nobs = 188
+data = cron[cron.country != 'SRB']
+data = pd.get_dummies(data.drop(columns=['year']))
+df_train, df_test = data[0:-nobs], data[-nobs:]
+
+
+
+
+
 # runs adfuller test for each variable (all data), returns all data stationary
-# if its ran for each country individually, data is non-stationary...
 
 checkup = list()
 non_stationaries = list()
@@ -171,21 +295,6 @@ forecast_input = df_train.values[-lag_order:]
 fc = model_fitted.forecast(y=forecast_input, steps=nobs)
 df_forecast = pd.DataFrame(fc, index=data.index[-nobs:], columns=data.columns + '_1d')
 
-
-def invert_transformation(df_train, df_forecast, second_diff=False):
-    """Revert back the differencing to get the forecast to original scale."""
-    df_fc = df_forecast.copy()
-    columns = df_train.columns
-    for col in columns:
-        # Roll back 2nd Diff
-        if second_diff:
-            df_fc[str(col) + '_1d'] = (df_train[col].iloc[-1] - df_train[col].iloc[-2]) + df_fc[
-                str(col) + '_2d'].cumsum()
-        # Roll back 1st Diff
-        df_fc[str(col) + '_forecast'] = df_train[col].iloc[-1] + df_fc[str(col) + '_1d'].cumsum()
-    return df_fc
-
-
 df_results = invert_transformation(df_train, df_forecast)
 
 fig, axes = plt.subplots(nrows=int(len(data.columns) / 2), ncols=2, dpi=150, figsize=(10, 10))
@@ -202,7 +311,7 @@ plt.tight_layout()
 plt.show()
 
 # END OF VAR TESTING
-'''
+
 
 # corr matrix and regression analysis
 df_linreg = df
@@ -289,26 +398,7 @@ plt.show()'''
 
 # boxplot showing variability for each variable for 1960/65 and is standardized.
 # Again, we can make a loop to run this for dif time periods
-def box_plot(dataframe, standardize=True):
-    fig = plt.figure(figsize=(20, 10))
 
-    if standardize == True:
-        # standardize columns for better visualization
-        idx = dataframe.applymap(lambda x: isinstance(x, str)).all(0)
-        dataframe_num = dataframe[dataframe.columns[~idx]]
-        dataframe = pd.DataFrame(preprocessing.StandardScaler().fit_transform(dataframe_num.values),
-                                 columns=dataframe_num.columns)
-
-    fig = sns.boxplot(x='value', y='variable',
-                      data=pd.melt(dataframe.reset_index(), id_vars='index', value_vars=list(dataframe.columns)),
-                      orient='h')
-    fig.tick_params(labelsize=20)
-    fig.set_xlabel('')
-    fig.set_ylabel('')
-    if standardize == True:
-        fig.set_title('Standardized Variable Distribution\nfor better visualization', fontsize=40)
-    dataframe = pd.plotting.register_matplotlib_converters()
-    plt.show()
 
 
 Q1 = df_linreg.quantile(0.2)
@@ -336,54 +426,7 @@ plt.show()"""
 # useless and bad results but might be able to apply it to useful model
 
 
-def kFold_CV(X, y, model, n_fold, _display=True):
-    # generate folds
-    folds = KFold(n_splits=n_fold, random_state=0, shuffle=True)
 
-    # fit model on each k-1 fold and evaluate performances (errors)
-    columns = ['Split', 'Train size', 'Test size', 'Train R^2', 'Train RMSE', 'Test RMSE']
-    results = pd.DataFrame()
-
-    plot_count = 1
-    split_count = 1
-    model_list = {}
-    for train_index, test_index in folds.split(X, y):
-        # define train and test (validation) set
-        X_split_train = X.iloc[train_index, :]
-        X_split_test = X.iloc[test_index, :]
-        y_split_train = y.iloc[train_index]
-        y_split_test = y.iloc[test_index]
-
-        # fit model on train set and get performances on train set
-        model_fit = model.fit(X_split_train, y_split_train.values.ravel())
-        y_train_predicted = model.predict(X_split_train)
-        R2_train = metrics.r2_score(y_split_train, y_train_predicted)
-        RMSE_train = np.sqrt(metrics.mean_squared_error(y_split_train, y_train_predicted))
-        model_list['split_' + str(split_count)] = model_fit
-
-        # get performance on test set
-        y_test_predicted = model.predict(X_split_test)
-        RMSE_test = np.sqrt(metrics.mean_squared_error(y_split_test, y_test_predicted))
-
-        # append results
-        to_append = pd.DataFrame([[split_count, X_split_train.shape[0], X_split_test.shape[0], R2_train,
-                                   RMSE_train, RMSE_test]],
-                                 columns=columns)
-        results = results.append(to_append)
-        split_count += 1
-        plot_count += 1
-
-    results['Split'] = results['Split'].astype(int)
-    results['Train size'] = results['Train size'].astype(int)
-    results['Test size'] = results['Test size'].astype(int)
-    results = results.reset_index(drop=True)
-    mean = results[['Train R^2', 'Train RMSE', 'Test RMSE']].mean()
-    mean = mean.append(results[['Split', 'Train size', 'Test size']].iloc[-1])
-
-    if _display == True:
-        print(mean)
-
-    return mean, model_list
 
 
 model = LinearRegression()
@@ -395,40 +438,7 @@ print(cv_results)
 # Time series nested CV using day forward chaining
 # https://towardsdatascience.com/time-series-nested-cross-validation-76adba623eb9
 
-def time_series_cv(X, y, model, date_column, _display=True):
-    periods = X[date_column].unique()
-    columns = pd.get_dummies(X.drop(columns=[date_column])).columns
-    performance = list()
-    R2_list = list()
-    # making train, validate and prediction sets based on subsequent time differences
-    for count in range(1, len(periods) - 1):
-        X_train = pd.get_dummies(X.loc[X[date_column] <= periods[count - 1]].drop(columns=[date_column])).reindex(
-            columns=columns, fill_value=0)
-        X_test = pd.get_dummies(X.loc[X[date_column] == periods[count]].drop(columns=[date_column])).reindex(
-            columns=columns, fill_value=0)
-        y_train = y.iloc[X_train.index]
-        y_test = y.iloc[X_test.index]
 
-        # fit model on train set and measure performance
-        model.fit(X_train, y_train.values.ravel())
-        y_train_predicted = model.predict(X_train)
-        R2_train = metrics.r2_score(y_train, y_train_predicted)
-
-        # get performance on test set
-        y_test_predicted = model.predict(X_test)
-        RMSE_test = np.sqrt(metrics.mean_squared_error(y_test, y_test_predicted))
-
-        # store values to determine performance later
-        performance.append(RMSE_test)
-        R2_list.append(R2_train)
-    # take mean of all the RMSE to obtain almost unbiased test RMSE
-    RMSE = sum(performance) / len(performance)
-    R2 = sum(R2_list) / len(R2_list)
-    result = pd.Series({'Train R^2': R2, 'RMSE model': RMSE})
-
-    if _display:
-        print(result)
-    return result
 
 
 X = df_linreg.drop(columns=['Net migration'])
