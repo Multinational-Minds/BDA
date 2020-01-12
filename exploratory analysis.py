@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import gaussian_kde
+from scipy import stats
 
 
 data = f.openfile('data.h5')
@@ -213,6 +214,14 @@ for period in periods:
     sns.distplot(df_NetMigr_period['Net migration'], bins=100)
     plt.show()
     plt.savefig("NormDistrNetMigr_"+str(period)+".png")
+    stat, p = stats.shapiro(df_NetMigr_period['Net migration'].values)
+    print('Statistics=%.3f, p=%.3f' % (stat, p))
+    # interpret
+    alpha = 0.05
+    if p > alpha:
+        print('Sample looks Gaussian (fail to reject H0)')
+    else:
+        print('Sample does not look Gaussian (reject H0)')
 
     # histograms for all variables for every year
     df_period = df[df['year'] == str(period)]
