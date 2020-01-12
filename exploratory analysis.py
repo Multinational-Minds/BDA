@@ -222,9 +222,8 @@ for period in periods:
 
     # all variables plotted against Net migration
     for i in range(1, len(df_num_period.columns), 5):
-        g = sns.pairplot(data=df_num_period, x_vars=df_num_period.columns[i:i + 5], y_vars=['Net migration'], height=8,
+        sns.pairplot(data=df_num_period, x_vars=df_num_period.columns[i:i + 5], y_vars=['Net migration'], height=8,
                      aspect=0.7)
-        plt.ylabel('Net migration')
         plt.show()
 
     # variables plotted against Net migration plus trend line
