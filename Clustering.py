@@ -28,7 +28,6 @@ for c, num in zip(periods, range(1, 12)):
     Error = []
     for i in range(1, 15):
         kmeans = KMeans(n_clusters=i).fit(features)
-        kmeans.fit(features)
         Error.append(kmeans.inertia_)
 
     ax.plot(range(1, 15), Error)
