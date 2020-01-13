@@ -193,7 +193,7 @@ fig.tight_layout()
 fig.subplots_adjust(wspace=0.2, hspace=1)
 fig.savefig("CorrHeatmap_ForEveryPeriod.png")
 
-# check normal distribution of Net migration for every year
+# check normal distribution of Net migration for every period
 df_NetMigr = df[['year', 'Net migration']]
 
 for period in periods:
@@ -212,7 +212,7 @@ for period in periods:
     else:
         print('Sample does not look Gaussian (reject H0)')
 
-    # histograms for all variables for every year
+    # histograms for all variables for every period
     df_period = df[df['year'] == str(period)]
 
     df_num_period = df_period.select_dtypes(include=['float64'])
@@ -221,7 +221,7 @@ for period in periods:
     plt.tight_layout()
     fig.savefig("HistAllVar_"+str(period)+".png")
 
-    # highest correlations in descending order for every year
+    # highest correlations in descending order for every period
     df_num_corr = df_num_period.corr()['Net migration'][1:5]
     golden_features_list = df_num_corr[abs(df_num_corr) > 0.3].sort_values(ascending=False)
     print("There is {} strongly correlated values with Net migration:\n{}".format(len(golden_features_list),
