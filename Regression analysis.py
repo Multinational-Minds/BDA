@@ -300,7 +300,7 @@ df_results = df_forecast
 
 fig, axes = plt.subplots(nrows=int(len(data.columns) / 2), ncols=2, dpi=150, figsize=(10, 10))
 for i, (col, ax) in enumerate(zip(data.columns, axes.flatten())):
-    df_results[col + '_forecast'].plot(legend=True, ax=ax).autoscale(axis='x', tight=True)
+    df_results[col].plot(legend=True, ax=ax).autoscale(axis='x', tight=True)
     df_test[col][-nobs:].plot(legend=True, ax=ax)
     ax.set_title(col + ": Forecast vs Actuals")
     ax.xaxis.set_ticks_position('none')

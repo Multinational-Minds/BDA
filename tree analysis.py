@@ -8,23 +8,29 @@ from sklearn.tree import export_graphviz
 import pydot
 import matplotlib.pyplot as plt
 import os
+from scipy import stats
 
 os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/graphviz/release/bin/'
 
 data = f.openfile('data.h5')
+copy = data.copy()
+data = data.sort_values(by='year').reset_index()
+data['year'] = data['year'].apply(lambda x: str(x.year))
+data = pd.get_dummies(data)
 
 labels = np.array(data['Net migration'])
 features = data.drop('Net migration', axis=1)
-features['year'] = features['year'].apply(lambda x: str(x.year))
-features = pd.get_dummies(features)
+
 features_list = list(features.columns)
 
-data['year'] = data['year'].apply(lambda x: str(x.year))
-data['key'] = data[['country', 'year']].apply(lambda x: ''.join(x), axis=1)
+copy['year'] = copy['year'].apply(lambda x: str(x.year))
+copy['key'] = copy[['country', 'year']].apply(lambda x: ''.join(x), axis=1)
 
-train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size=0.25)
+nobs = int(len(data.index) * 3 / 4)
+train_features, test_features = data[0:nobs], data[nobs:]
+train_labels, test_labels = data[0:nobs], data[nobs:]
 idx = test_features.index
-keys = data['key'].iloc[idx]
+keys = copy['key'].iloc[idx]
 
 rf = RandomForestRegressor(n_estimators=1000)
 fit = rf.fit(train_features, train_labels)
@@ -32,7 +38,7 @@ fit = rf.fit(train_features, train_labels)
 predictions = rf.predict(test_features)
 errors = abs(predictions - test_labels)
 RMSE = sqrt((errors ** 2).mean())
-R2 = fit.score()
+R2 = fit.score(test_features, test_labels)
 print('RMSE model full:' + str(RMSE))
 print('R2 model full: ', R2)
 
@@ -60,7 +66,9 @@ rf_most_important.fit(train_important, train_labels)
 predictions_important = rf_most_important.predict(test_important)
 errors_reduced = (predictions_important - test_labels)
 RMSE_reduced = sqrt((errors_reduced ** 2).mean())
+R2_reduced = fit.score(test_features, test_labels)
 print('RMSE model reduced:' + str(RMSE_reduced))
+print('R2 model reduced: ', R2_reduced)
 print('difference between the two RMSE: ', str(RMSE_reduced - RMSE))
 
 predictions_data = pd.DataFrame({'prediction': predictions, 'key': keys})
