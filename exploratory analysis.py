@@ -236,5 +236,5 @@ for period in periods:
     fig, ax = plt.subplots(5, figsize=(10, 20))
     for i, ax in enumerate(fig.axes):
         if i < len(df_num_period.columns) - 1:
-            sns.regplot(x=df_num_period.columns[i + 1], y='Net migration', data=df_num, ax=ax)
-            fig.savefig("TrendAllVarvsNetMigr_"+str(period)+".png")
+            sns.regplot(x=df_num_period.columns[i + 1], y='Net migration', data=df_num_period, ax=ax)
+        fig.savefig("TrendAllVarvsNetMigr_"+str(period)+".png")
