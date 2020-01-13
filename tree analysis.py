@@ -1,14 +1,13 @@
+import os
 from math import sqrt
-import functions as f
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.tree import export_graphviz
 import pydot
-import matplotlib.pyplot as plt
-import os
-from scipy import stats
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.tree import export_graphviz
+
+import functions as f
 
 os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/graphviz/release/bin/'
 
@@ -27,8 +26,8 @@ copy['year'] = copy['year'].apply(lambda x: str(x.year))
 copy['key'] = copy[['country', 'year']].apply(lambda x: ''.join(x), axis=1)
 
 nobs = int(len(data.index) * 3 / 4)
-train_features, test_features = data[0:nobs], data[nobs:]
-train_labels, test_labels = data[0:nobs], data[nobs:]
+train_features, test_features = features[0:nobs], features[nobs:]
+train_labels, test_labels = labels[0:nobs], labels[nobs:]
 idx = test_features.index
 keys = copy['key'].iloc[idx]
 
