@@ -32,6 +32,9 @@ for c, num in zip(periods, range(1, 12)):
         Error.append(kmeans.inertia_)
 
     ax.plot(range(1, 15), Error)
+    plt.title('Elbow Method')
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('Inertia')
 
 plt.tight_layout()
 fig.savefig("ElbowMethod.png")
