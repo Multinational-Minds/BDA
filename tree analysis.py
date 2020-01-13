@@ -1,5 +1,4 @@
 from math import sqrt
-
 import functions as f
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -33,14 +32,9 @@ fit = rf.fit(train_features, train_labels)
 predictions = rf.predict(test_features)
 errors = abs(predictions - test_labels)
 RMSE = sqrt((errors ** 2).mean())
+R2 = fit.score()
 print('RMSE model full:' + str(RMSE))
-
-'''
-ONLY LET THIS RUN ONCE, IT'S SLOW AS FUCK
-tree = rf.estimators_[5]
-export_graphviz(tree, out_file='tree.dot', feature_names=features_list, rounded=True, precision=1)
-(graph,) = pydot.graph_from_dot_file('tree.dot')
-graph.write_png('tree.png')'''
+print('R2 model full: ', R2)
 
 rf_small = RandomForestRegressor(n_estimators=10, max_depth=3)
 rf_small.fit(train_features, train_labels)

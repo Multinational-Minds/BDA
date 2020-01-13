@@ -1,42 +1,22 @@
-import functions as f
+import sys
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib.gridspec as gridspec
-from dateutil.relativedelta import relativedelta
-from scipy.optimize import minimize
-
-import statsmodels.formula.api as smf
-import statsmodels.tsa.api as smt
-import statsmodels.api as sm
-import scipy.stats as scs
-import datetime
-import json
-import requests
-from itertools import product
-# from tqdm import tqdm_notebook
-import math
-import itertools
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+from pandas.plotting import register_matplotlib_converters
 from sklearn import metrics
 from sklearn import preprocessing
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
-from pylab import rcParams
-from pandas.plotting import register_matplotlib_converters
+import functions as f
 
 register_matplotlib_converters()
-from statsmodels.tsa.stattools import acf, pacf
-from statsmodels.tsa.arima_model import ARIMA
 from statsmodels.tsa.api import VAR
 from statsmodels.tsa.stattools import adfuller
-from statsmodels.tools.eval_measures import rmse, aic
-
 
 def time_series_cv(X, y, model, date_column, _display=True):
+    """Time series nested CV using day forward chaining
+    https://towardsdatascience.com/time-series-nested-cross-validation-76adba623eb9"""
     periods = X[date_column].unique()
     columns = pd.get_dummies(X.drop(columns=[date_column])).columns
     performance = list()
@@ -220,9 +200,6 @@ def vif(exogs, data):
 
 
 df = f.openfile('data.h5')
-
-'''I thought a dict with all the data per decade would be more useful for you so I went ahead and created that for you'''
-
 df['year'] = df['year'].apply(lambda x: int(x.year))
 decades = df['year'].unique()
 dataframes = {}
@@ -232,8 +209,6 @@ for decade in decades:
 
 # time series data, without countries
 
-AFG = df.loc[(df['country'] == 'AFG')].sort_values(
-    by='year')
 cron = df.sort_values(by='year')
 cron['year'] = cron['year'].apply(lambda x: str(x))
 df['year'] = df['year'].apply(lambda x: str(x))
@@ -245,7 +220,7 @@ if so we will need to use alternative regression methods in order to account for
 # https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
 # Plot 1 line per country
 
-'''fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10, 6))
+fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10, 6))
 for i, ax in enumerate(axes.flatten()):
     data = df[df.columns[i]]
     ax.plot(data, color='red', linewidth=1)
@@ -257,7 +232,7 @@ for i, ax in enumerate(axes.flatten()):
     ax.tick_params(labelsize=6)
 
 plt.tight_layout()
-'''
+
 # splits  data for train and test (all data)
 # make country specific by opening line #58, and changing nobe line#85 to 2
 # again, issue is it looks at everything, not on a country by country basis
@@ -270,7 +245,6 @@ df_train, df_test = data[0:-nobs], data[-nobs:]
 variables = data.columns
 vif_df = vif(variables, data)
 print(vif_df)
-
 
 # runs adfuller test for each variable (all data), returns all data stationary
 
@@ -317,12 +291,12 @@ lag_order = model_fitted.k_ar
 print(lag_order)  # > 1
 
 # Input data for forecasting
-forecast_input = df_train.values[-lag_order:]
+forecast_input = df_differenced.values[-lag_order:]
 
 fc = model_fitted.forecast(y=forecast_input, steps=nobs)
 df_forecast = pd.DataFrame(fc, index=data.index[-nobs:], columns=data.columns + '_1d')
 
-df_results = invert_transformation(df_train, df_forecast)
+df_results = df_forecast
 
 fig, axes = plt.subplots(nrows=int(len(data.columns) / 2), ncols=2, dpi=150, figsize=(10, 10))
 for i, (col, ax) in enumerate(zip(data.columns, axes.flatten())):
@@ -337,8 +311,10 @@ for i, (col, ax) in enumerate(zip(data.columns, axes.flatten())):
 plt.tight_layout()
 plt.show()
 
-# END OF VAR TESTING
+time_series_cv(model_fitted.exog, model_fitted.endog, model_fitted)
+sys.exit(0)
 
+# END OF VAR TESTING
 
 # corr matrix and regression analysis
 df_linreg = df
@@ -364,7 +340,7 @@ y = df_linreg['Net migration']
 
 fig = plt.figure(figsize=(10, 20), constrained_layout=True)
 spec = gridspec.GridSpec(nrows=X.shape[1], ncols=2, figure=fig)
-'''
+
 for var_index, var in enumerate(X.columns):
     ax_left = fig.add_subplot(spec[var_index, 0])
     sns.distplot(X[var], ax=ax_left)
@@ -376,7 +352,7 @@ for var_index, var in enumerate(X.columns):
     ax_right.set_ylabel('Net migration')
 
 plt.show()
-'''
+
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, shuffle=False)
 
 plt.figure(figsize=(10, 6))
@@ -402,32 +378,8 @@ y_train_predicted = model.predict(X_train)
 
 # compare predictions
 print(pd.DataFrame({'True': y_train.ravel(), 'Predicted': y_train_predicted.ravel()}))
-'''
-# plot marginal models
-fig, ax = plt.subplots(math.ceil(X_train.shape[1] / 3), 3, figsize=(20, 10), constrained_layout=True)
-ax = ax.flatten()
 
-for i, var in enumerate(X_train.columns):
-    ax[i].scatter(X_train[var], y_train, color='gray')
-    X_train_univariate = pd.DataFrame(np.zeros(X_train.shape), columns=X_train.columns, index=X_train.index)
-    X_train_univariate[var] = X_train[var]
-    y_train_predicted_univariate = model.predict(X_train_univariate)
-    ax[i].plot(X_train[var], y_train_predicted_univariate + (y_train.mean() - y_train_predicted_univariate.mean()),
-               color='red', linewidth=2)
-    # y_train.mean()-y_train_predicted_univariate.mean() has been added only to center the line on the points
-    # what matters is the slope of the line as the intercept term cannot be "shared" among all univariate variables
-    ax[i].set_title('Net migration vs ' + var + ' - corr: ' + \
-                    str(round(corrmat_list.loc[(var, 'Net migration'), 'correlation'] * 100)) + '%', fontsize=15)
-    ax[i].set_xlabel(var)
-    ax[i].set_ylabel('Net migration')
-plt.show()'''
-
-
-# boxplot showing variability for each variable for 1960/65 and is standardized.
-# Again, we can make a loop to run this for dif time periods
-
-
-
+# deleting outliers
 Q1 = df_linreg.quantile(0.2)
 Q3 = df_linreg.quantile(0.8)
 IQR = Q3 - Q1
@@ -436,71 +388,10 @@ dataset_outlier = df_linreg[~((df_linreg < (Q1 - IQR)) | (df_linreg > (Q3 + IQR)
 print('\nData size reduced from {} to {}\n'.format(df_linreg.shape[0], dataset_outlier.shape[0]))
 box_plot(dataset_outlier)
 
-# simple scatter plot comparing migration and tas 1960/65
-# can be changed to show other 1 on 1 relationships
-"""x = df60.iloc[:,0].values.reshape(-1,1)
-y = df60.iloc[:,1].values.reshape(-1,1)
-
-plt.scatter(x, y, marker='o')
-plt.title('Net migration vs tas 1960')
-plt.xlabel('Net migration')
-plt.ylabel('tas')
-plt.show()"""
-
-
-# K-fold Cross-Validation
-# Runs but does not account for time series, uses all data for kfold test/split so is not accurate :(
-# useless and bad results but might be able to apply it to useful model
-
-
-
-
-
+#applying the linear regression model
 model = LinearRegression()
-cv_results = kFold_CV(X, y, model, n_fold=20, _display=False)
-
-print(cv_results)
-
-
-# Time series nested CV using day forward chaining
-# https://towardsdatascience.com/time-series-nested-cross-validation-76adba623eb9
-
-
-
-
 X = df_linreg.drop(columns=['Net migration'])
 y = df_linreg['Net migration']
 
+#CV in order to obtain performance metrics
 time_series_cv(X, y, model, date_column='year')
-
-# ARIMA regression model - cant make this one work
-"""
-lag_acf = acf(df_mig, nlags=20)
-lag_pacf = pacf(df_mig, nlags=20, method='ols')
-
-#Plot ACF:
-plt.subplot(121)
-plt.plot(lag_acf)
-plt.axhline(y=0,linestyle='--',color='gray')
-plt.axhline(y=-1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
-plt.axhline(y=1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
-plt.title('Autocorrelation Function')
-
-#Plot PACF:
-plt.subplot(122)
-plt.plot(lag_pacf)
-plt.axhline(y=0,linestyle='--',color='gray')
-plt.axhline(y=-1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
-plt.axhline(y=1.96/np.sqrt(len(df_mig)),linestyle='--',color='gray')
-plt.title('Partial Autocorrelation Function')
-plt.tight_layout()
-# plt.show()
-
-# AR Model
-model = ARIMA(df_mig, order=(2, 1, 0))
-results_AR = model.fit(disp=-1)
-plt.plot(df_mig)
-plt.plot(results_AR.fittedvalues, color='red')
-plt.title('RSS: %.4f'% sum((results_AR.fittedvalues-df_mig)**2))
-plt.show()
-"""
