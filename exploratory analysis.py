@@ -15,7 +15,6 @@ print(df.columns)
 print(df.dtypes)
 
 # remove outliers for future plots
-
 x_nm = np.array(df['Net migration'])
 q1_nm = np.quantile(x_nm, 0.25, interpolation='midpoint')
 q3_nm = np.quantile(x_nm, 0.75, interpolation='midpoint')
@@ -54,7 +53,7 @@ df_no_pt = df.loc[(df['Net migration'] < 1.5*IQR_nm) & (df['Population, total'] 
 
 periods = df.year.unique()
 
-# plot net immigration vs tas for every year
+# plot net immigration vs tas for every period
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -75,7 +74,7 @@ for c, num in zip(periods, range(1, 12)):
 plt.tight_layout()
 fig.savefig("TempvsNetMigr_AllPeriods.png")
 
-# plot net immigration vs pr for every year
+# plot net immigration vs pr for every period
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -96,7 +95,7 @@ for c, num in zip(periods, range(1, 12)):
 fig.tight_layout()
 fig.savefig("RainvsNetMigr_AllPeriods.png")
 
-# plot net immigration vs arable land for every year
+# plot net immigration vs arable land for every period
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
@@ -117,7 +116,7 @@ for c, num in zip(periods, range(1, 12)):
 plt.tight_layout()
 fig.savefig("ArLandvsNetMigr_AllPeriods.png")
 
-# plot net immigration vs population growth for every year
+# plot net immigration vs population growth for every period
 fig = plt.figure(figsize=(20, 20))
 
 for c, num in zip(periods, range(1, 12)):
