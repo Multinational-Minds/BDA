@@ -1,3 +1,5 @@
+from math import sqrt
+
 import functions as f
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -30,8 +32,8 @@ fit = rf.fit(train_features, train_labels)
 
 predictions = rf.predict(test_features)
 errors = abs(predictions - test_labels)
-MSE = (errors ** 2).mean()
-print('Mean Square Error model full:' + str(MSE))
+RMSE = sqrt((errors ** 2).mean())
+print('RMSE model full:' + str(RMSE))
 
 '''
 ONLY LET THIS RUN ONCE, IT'S SLOW AS FUCK
@@ -63,9 +65,9 @@ test_important = test_features[important_indices]
 rf_most_important.fit(train_important, train_labels)
 predictions_important = rf_most_important.predict(test_important)
 errors_reduced = (predictions_important - test_labels)
-MSE_reduced = (errors_reduced ** 2).mean()
-print('Mean Square Error model reduced:' + str(MSE_reduced))
-print('difference between the two MSE: ', str(MSE - MSE_reduced))
+RMSE_reduced = sqrt((errors_reduced ** 2).mean())
+print('RMSE model reduced:' + str(RMSE_reduced))
+print('difference between the two RMSE: ', str(RMSE_reduced - RMSE))
 
 predictions_data = pd.DataFrame({'prediction': predictions, 'key': keys})
 true_data = pd.DataFrame({'actual': test_labels, 'key': keys})

@@ -193,12 +193,37 @@ def invert_transformation(df_train, df_forecast, second_diff=False):
         df_fc[str(col) + '_forecast'] = df_train[col].iloc[-1] + df_fc[str(col) + '_1d'].cumsum()
     return df_fc
 
+
+def vif(exogs, data):
+    vif_dict, tolerance_dict = {}, {}
+
+    # form input data for each exogenous variable
+    for exog in exogs:
+        not_exog = [i for i in exogs if i != exog]
+        X, y = data[not_exog], data[exog]
+
+        # extract r-squared from the fit
+        r_squared = LinearRegression().fit(X, y).score(X, y)
+
+        # calculate VIF
+        vif = 1 / (1 - r_squared)
+        vif_dict[exog] = vif
+
+        # calculate tolerance
+        tolerance = 1 - r_squared
+        tolerance_dict[exog] = tolerance
+
+    # return VIF DataFrame
+    df_vif = pd.DataFrame({'VIF': vif_dict, 'Tolerance': tolerance_dict})
+
+    return df_vif
+
+
 df = f.openfile('data.h5')
 
 '''I thought a dict with all the data per decade would be more useful for you so I went ahead and created that for you'''
 
 df['year'] = df['year'].apply(lambda x: int(x.year))
-
 decades = df['year'].unique()
 dataframes = {}
 for decade in decades:
@@ -220,7 +245,7 @@ if so we will need to use alternative regression methods in order to account for
 # https://www.machinelearningplus.com/time-series/vector-autoregression-examples-python/
 # Plot 1 line per country
 
-fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10, 6))
+'''fig, axes = plt.subplots(nrows=3, ncols=2, dpi=120, figsize=(10, 6))
 for i, ax in enumerate(axes.flatten()):
     data = df[df.columns[i]]
     ax.plot(data, color='red', linewidth=1)
@@ -232,7 +257,7 @@ for i, ax in enumerate(axes.flatten()):
     ax.tick_params(labelsize=6)
 
 plt.tight_layout()
-
+'''
 # splits  data for train and test (all data)
 # make country specific by opening line #58, and changing nobe line#85 to 2
 # again, issue is it looks at everything, not on a country by country basis
@@ -241,8 +266,10 @@ data = cron[cron.country != 'SRB']
 data = pd.get_dummies(data.drop(columns=['year']))
 df_train, df_test = data[0:-nobs], data[-nobs:]
 
-
-
+# vif testing
+variables = data.columns
+vif_df = vif(variables, data)
+print(vif_df)
 
 
 # runs adfuller test for each variable (all data), returns all data stationary

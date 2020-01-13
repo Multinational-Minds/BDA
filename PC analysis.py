@@ -37,7 +37,16 @@ plt.show()
 '''lastly we print out how much variance is explained by each of the components'''
 print('the total explained variance is: ',
       (pca_init.explained_variance_ratio_[0] + pca_init.explained_variance_ratio_[1]) * 100, '%')
+print('var PC1: ', pca_init.explained_variance_ratio_[0])
 
-'''in conclusion there is not enough variance contained in these two pc's (a mere 2%) to justify 
-applying this method as a dimension reduction option
-We can also conclude that there is no real insight into the data to be gained from this analysis'''
+'''As we can see the first two principal components are not able to capture a lot of the variation in the data, neither is the first component so this will be of limited use'''
+
+# Fitting the PCA algorithm with our Data
+pca = PCA().fit(x)
+# Plotting the Cumulative Summation of the Explained Variance
+plt.figure()
+plt.plot(np.cumsum(pca.explained_variance_ratio_))
+plt.xlabel('Number of Components')
+plt.ylabel('Variance (%)')  # for each component
+plt.title('Dataset Explained Variance')
+plt.show()

@@ -5,11 +5,9 @@ import functions as f
 
 
 # import data
-data = f.openfile("data.h5")
-print(data)
-f.savefile(data, "data")
+df = f.openfile("data.h5")
 
-df = pd.read_csv('data.csv')
+
 
 periods = df.year.unique()
 
@@ -18,9 +16,7 @@ fig = plt.figure(figsize=(20, 20))
 for c, num in zip(periods, range(1, 12)):
 
     # subset every period
-    df_year = df[df['year'] == c]
-    # select only numeric columns
-    features = df_year.iloc[:, 3:9].values
+    features = df[df['year'] == c].drop(columns=['year', 'country'])
 
     ax = fig.add_subplot(5, 3, num)
 
@@ -44,22 +40,20 @@ fig.savefig("ElbowMethod.png")
 
 kmeans3 = KMeans(n_clusters=3)
 
-for c in periods:
-    df_year = df[df['year'] == c]
-    features = df_year.iloc[:, 3:9].values
+
+# Kmeans Clustering for every period
+fig = plt.figure(figsize=(45, 60))
+
+for c, num in zip(periods, range(1, 12)):
+    features = df[df['year'] == c].drop(columns=['year', 'country'])
     y_kmeans3 = kmeans3.fit_predict(features)
 
     print(c)
     print(y_kmeans3)
     print()
 
-# Kmeans Clustering for every period
-fig = plt.figure(figsize=(45, 60))
-
-for c, num in zip(periods, range(1, 12)):
-    df0 = df[df['year'] == c]
     ax = fig.add_subplot(5, 3, num)
-    scatter = ax.scatter(df_year['Population, total'], df_year['Net migration'],
+    scatter = ax.scatter(features['Population, total'], features['Net migration'],
                          c=y_kmeans3, s=50)
     ax.set_title('K-Means Clustering ' + str(c))
     ax.set_xlabel('Total population')
