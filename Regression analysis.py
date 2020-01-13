@@ -1,3 +1,4 @@
+import json
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,10 +10,11 @@ from sklearn import preprocessing
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 import functions as f
-
+import matplotlib.gridspec as gridspec
 register_matplotlib_converters()
 from statsmodels.tsa.api import VAR
 from statsmodels.tsa.stattools import adfuller
+from sklearn.model_selection import train_test_split
 
 def time_series_cv(X, y, model, date_column, _display=True):
     """Time series nested CV using day forward chaining
@@ -198,6 +200,23 @@ def vif(exogs, data):
 
     return df_vif
 
+def regression_results(y_true, y_pred):
+
+    # Regression metrics
+    explained_variance=metrics.explained_variance_score(y_true, y_pred)
+    mean_absolute_error=metrics.mean_absolute_error(y_true, y_pred)
+    mse=metrics.mean_squared_error(y_true, y_pred)
+    mean_squared_log_error=metrics.mean_squared_log_error(y_true, y_pred)
+    median_absolute_error=metrics.median_absolute_error(y_true, y_pred)
+    r2=metrics.r2_score(y_true, y_pred)
+
+    print('explained_variance: ', round(explained_variance,4))
+    print('mean_squared_log_error: ', round(mean_squared_log_error,4))
+    print('r2: ', round(r2,4))
+    print('MAE: ', round(mean_absolute_error,4))
+    print('MSE: ', round(mse,4))
+    print('RMSE: ', round(np.sqrt(mse),4))
+
 
 df = f.openfile('data.h5')
 df['year'] = df['year'].apply(lambda x: int(x.year))
@@ -284,7 +303,9 @@ except OverflowError:
     print('FPE too large, did not want to mess with code in package')
 
 model_fitted = model.fit(4)
-# print(model_fitted.summary())
+
+with open('VAR summary.txt', 'w') as outfile:
+    json.dump(model_fitted.summary(), outfile)
 
 # Get the lag order
 lag_order = model_fitted.k_ar
@@ -311,8 +332,6 @@ for i, (col, ax) in enumerate(zip(data.columns, axes.flatten())):
 plt.tight_layout()
 plt.show()
 
-time_series_cv(model_fitted.exog, model_fitted.endog, model_fitted)
-sys.exit(0)
 
 # END OF VAR TESTING
 
@@ -340,7 +359,7 @@ y = df_linreg['Net migration']
 
 fig = plt.figure(figsize=(10, 20), constrained_layout=True)
 spec = gridspec.GridSpec(nrows=X.shape[1], ncols=2, figure=fig)
-
+'''
 for var_index, var in enumerate(X.columns):
     ax_left = fig.add_subplot(spec[var_index, 0])
     sns.distplot(X[var], ax=ax_left)
@@ -352,7 +371,7 @@ for var_index, var in enumerate(X.columns):
     ax_right.set_ylabel('Net migration')
 
 plt.show()
-
+'''
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, shuffle=False)
 
 plt.figure(figsize=(10, 6))
@@ -395,3 +414,5 @@ y = df_linreg['Net migration']
 
 #CV in order to obtain performance metrics
 time_series_cv(X, y, model, date_column='year')
+
+regression_results(y_train_predicted, y_test)
