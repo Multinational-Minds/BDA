@@ -63,6 +63,21 @@ for c, num in zip(periods, range(1, 12)):
 fig.tight_layout()
 fig.savefig("KMeansClustering.png")
 
+# Elbow Method for all periods
+fig = plt.figure(figsize=(10, 10))
+features = df.drop(columns=['year', 'country'])
+ax = fig.add_subplot()
+Error = []
+for i in range(1, 15):
+    kmeans = KMeans(n_clusters=i).fit(features)
+    Error.append(kmeans.inertia_)
+
+ax.plot(range(1, 15), Error)
+plt.title('Elbow Method')
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia')
+fig.savefig("ElbowMethodFullData.png")
+
 variables = df.drop(columns=['year', 'country']).columns
 features = df.drop(columns=['year', 'country'])
 cluster_model = kmeans3.fit_predict(features)
