@@ -51,15 +51,20 @@ for c in periods:
     print(y_kmeans3)
     print()
 
-    # Plot the clusters obtained using k means
-    fig = plt.figure()
-    ax = fig.add_subplot()
+# Kmeans Clustering for every period
+fig = plt.figure(figsize=(45, 60))
+
+for c, num in zip(periods, range(1, 12)):
+    df0 = df[df['year'] == c]
+    ax = fig.add_subplot(5, 3, num)
     scatter = ax.scatter(df_year['Population, total'], df_year['Net migration'],
                          c=y_kmeans3, s=50)
     ax.set_title('K-Means Clustering ' + str(c))
     ax.set_xlabel('Total population')
     ax.set_ylabel('Net migration')
     plt.colorbar(scatter)
-    fig.savefig("KMeansClustering " + str(c) + ".png")
+
+fig.tight_layout()
+fig.savefig("KMeansClustering.png")
 
 
