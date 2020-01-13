@@ -63,4 +63,18 @@ for c, num in zip(periods, range(1, 12)):
 fig.tight_layout()
 fig.savefig("KMeansClustering.png")
 
+variables = df.drop(columns=['year', 'country']).columns
+features = df.drop(columns=['year', 'country'])
+cluster_model = kmeans3.fit_predict(features)
+fig = plt.figure(figsize=(45, 60))
+for var, num in zip(variables, range(1, len(variables) + 1)):
+    ax = fig.add_subplot(5, 3, num)
+    scatter = ax.scatter(features[var], features['Net migration'],
+                         c=cluster_model, s=50)
+    ax.set_title('K-Means Clustering ' + var)
+    ax.set_xlabel(var)
+    ax.set_ylabel('Net migration')
+    plt.colorbar(scatter)
 
+fig.tight_layout()
+fig.savefig("KMeansClusteringFullData.png")
